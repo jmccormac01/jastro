@@ -9,7 +9,7 @@ git clone https://github.com/jmccormac01/jastro.git
 # Usage
 
 ```python
->>> from jastro import constants.Constants as c
+>>> from jastro.constants import Constants as c
 >>> print(c.G)
 >>> 6.67408e-11
 >>> c._list_constants()
