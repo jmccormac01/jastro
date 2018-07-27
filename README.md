@@ -6,19 +6,32 @@
 git clone https://github.com/jmccormac01/jastro.git
 ```
 
-# Usage
+# Astronomical constants
+
+A list of useful constants which appear frequently in astronomical calculations
+
+### Accessing constants
 
 ```python
 >>> from jastro.constants import Constants as c
 >>> print(c.G)
->>> 6.67408e-11
->>> c._list_constants()
->>> G Msun Rsun Mjup Rjup Mproton boltzmann AU sec_d
+6.67408e-11
 ```
 
-## Constants
+### Listing supported constants
 
-A List of useful constants which appear frequently in astro calculations
+```python
+>>> c._list_constants()
+G Msun Rsun Lsun Mjup Rjup Mproton boltzmann AU sec_d
+```
+
+# Light curve handling
+
+A series of scripts for processing photometric light curves
+
+### Converting differential magnitudes to relative fluxes
+
+
 
 # Contributors
 

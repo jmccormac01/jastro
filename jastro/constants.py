@@ -5,10 +5,14 @@ List of constants used frequently in astronomical calculations
 class Constants(object):
     """
     Common suite of useful constants in astronomy
+
+    Solar mass, radius and luminosity values are from
+    Harmanec & Prsa arXiv:1106.1508v2
     """
     G = 6.67408E-11 # m3 kg^-1 s^-2
-    Msun = 1.989E30 # kg
-    Rsun = 695700000 # m
+    Msun = 1.988547E30 # kg
+    Rsun = 6.95508E8 # m
+    Lsun = 3.846E26 # W
     Mjup = 1.898E27 # kg
     Rjup = 69911000 # m
     Mproton = 1.6726219E-27 # kg
