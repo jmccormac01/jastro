@@ -16,3 +16,23 @@ def lc_mags_to_flux(mags, mags_err):
     flux = 10.**(mags / -2.5)
     flux_err = (mags_err/(2.5/np.log(10))) * flux
     return flux, flux_err
+
+def phase_times(times, epoch, period, phase_offset=0.0):
+    """
+    Take a list of times, an epoch, a period and
+    convert the times into phase space.
+
+    An optional offset can be supplied to shift phase 0
+    """
+    return (((times - epoch)/period)+phase_offset)%1
+
+def pc_bin(time, mmi, bin_width, clip=True):
+    bin_edges = np.arange(np.min(time), np.max(time), bin_width)
+    digitized = np.digitize(time, bin_edges)
+    binned_time = (bin_edges[1:] + bin_edges[:-1]) / 2
+    binned_mmi = np.array([0 if len(mmi[digitized == i]) == 0 else mmi[digitized == i].mean() for i in range(1, len(bin_edges))])
+    if clip:
+        n = np.where(binned_mmi != 0)[0]
+        binned_time = binned_time[n]
+        binned_mmi = binned_mmi[n]
+    return (binned_time, binned_mmi)
