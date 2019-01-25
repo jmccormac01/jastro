@@ -23,6 +23,20 @@ def lc_mags_to_flux(mags, mags_err):
     flux_err = (mags_err/(2.5/np.log(10))) * flux
     return flux, flux_err
 
+def lc_flux_to_mags(flux, flux_err):
+    """
+    Take 2 arrays, light curve and errors
+    and convert them from differential magnitudes
+    back to relative fluxes
+
+    Applying these equations:
+        mags = - 2.5 * log10(flux)
+        mag_err = (2.5/log(10))*(flux_err/flux)
+    """
+    mags = -2.5*np.log10(flux)
+    mags_err = (2.5/np.log(10))*(flux_err/flux)
+    return mags, mags_err
+
 def phase_times(times, epoch, period, phase_offset=0.0):
     """
     Take a list of times, an epoch, a period and
