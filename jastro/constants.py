@@ -2,6 +2,8 @@
 List of constants used frequently in astronomical calculations
 """
 
+# pylint: disable=invalid-name
+
 class Constants(object):
     """
     Common suite of useful constants in astronomy
@@ -24,13 +26,13 @@ class Constants(object):
     Mjup = GMjup/G # kg
     Rpjup = 6.6854E7 # m - polar radius
     Rejup = 7.1492E7 # m - equatorial radius
-    Rjup =  Rejup # if not specified, we use the equatorial
+    Rjup = Rejup # if not specified, we use the equatorial
     # Earth
     GMe = 3.986004E14 # m^3 s^-2
     Me = GMe/G # kg
     Rpe = 6.3568E6 # m - polar radius
     Ree = 6.3781E6 # m - equatorial radius
-    Re =  Ree # if not specified, we use the equatorial
+    Re = Ree # if not specified, we use the equatorial
     # Misc astronomy
     AU = 1.496E11 # m
     # Time

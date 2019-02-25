@@ -282,31 +282,3 @@ def read_ds9_region_file(filename, fits_file_extension='.f', index_offset=1.0):
     rsi.append(float(target[2]))
     rso.append(float(target[3]))
     return np.array(x), np.array(y), np.array(rsi), np.array(rso)
-
-def find_max_pixel_value(data, x, y, radius):
-    """
-    Find the maximum pixel value in the image
-    in a square around the aperture centre
-
-    Parameters
-    ----------
-    data : array-like
-        The image to search
-    x : int
-        X coordinate of the search box
-    y : int
-        Y coordinate of the search box
-    radius : int
-        The half width of the search box
-
-    Returns
-    -------
-    max_pixel_value : int
-        The maximum pixel value in the area provided
-
-    Raises
-    ------
-    None
-    """
-    return round(data[y-radius:y+radius, x-radius:x+radius].ravel().max(), 2)
-

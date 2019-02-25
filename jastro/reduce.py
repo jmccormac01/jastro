@@ -364,3 +364,30 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
         new_filename = '{}_r.fts'.format(filename.split('.fts')[0])
         fits.writeto(new_filename, ccd.data, header=hdr, overwrite=True)
     return ccd, time_jd, time_bary, time_helio
+
+def find_max_pixel_value(data, x, y, radius):
+    """
+    Find the maximum pixel value in the image
+    in a square around the aperture centre
+
+    Parameters
+    ----------
+    data : array-like
+        The image to search
+    x : int
+        X coordinate of the search box
+    y : int
+        Y coordinate of the search box
+    radius : int
+        The half width of the search box
+
+    Returns
+    -------
+    max_pixel_value : int
+        The maximum pixel value in the area provided
+
+    Raises
+    ------
+    None
+    """
+    return round(data[y-radius:y+radius, x-radius:x+radius].ravel().max(), 2)
