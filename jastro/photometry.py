@@ -4,7 +4,7 @@ Functions for extracting photometry
 import numpy as np
 import sep
 from jastro.ds9 import set_ds9
-from jastro.reduce import find_max_pixel_value
+from jastro.reduction import find_max_pixel_value
 
 # pylint: disable=invalid-name
 # pylint: disable=no-member
