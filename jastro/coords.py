@@ -285,7 +285,7 @@ def source_extract(filename, sigma, rad_sky_inner, rad_sky_outer,
                    np.c_[x, y], fmt='%.2f  %.2f', header='x  y')
     return object_ids, x, y, rsi, rso, segmentation_map
 
-def recenter_stars(xinit, yinit, source_x, source_y, sep_shift=1):
+def recenter_stars(xinit, yinit, source_x, source_y, sep_shift=1, seg_map=None):
     """
     Take a set of XY measurements and compare them to source extracted
     positions to find better centroids. This is typically done if using
@@ -305,6 +305,8 @@ def recenter_stars(xinit, yinit, source_x, source_y, sep_shift=1):
         Maximium difference between guess and position found
         by SEP. If the difference > sep_shift, abort
         Default = 1
+    seg_map : sep.segmentation_map
+        Used for measuring centroids of defocused stars
 
     Returns
     -------
@@ -323,13 +325,37 @@ def recenter_stars(xinit, yinit, source_x, source_y, sep_shift=1):
         diff_y = abs(source_y - j)
         radius = np.sqrt(diff_x**2+diff_y**2)
         match = np.where(radius == min(radius))[0][0]
+
+        # log a quick summary
+        print(f"Initial: {i:.2f}  {j:.2f}")
+        print(f"Closest match from extraction: {source_x[match]:.2f} {source_y[match]:.2f}")
+        print(f"Diff_x: {diff_x[match]:.2f} Diff_y: {diff_y[match]:.2f}")
+
         if diff_x[match] >= sep_shift or diff_y[match] >= sep_shift:
             print('Large shifts in recentroiding, check! skipping...')
             return [], []
-        print(source_x[match], source_y[match])
-        xo.append(source_x[match])
-        yo.append(source_y[match])
-    return np.array(xo), np.array(yo)
+
+        # if the segmentation map is suppled we are dealing with defocused obs
+        # use the seg map to find the centre of the donuts
+        if seg_map is not None:
+            print(f"Additional recentering on seg_map...")
+            mask = np.where(seg_map == match+1)
+            mask_y = round(np.average(mask[0]), 2)
+            mask_x = round(np.average(mask[1]), 2)
+            diff_x_seg = abs(source_x[match]-mask_x)
+            diff_y_seg = abs(source_y[match]-mask_y)
+            print(f"Seg_map centroid: {mask_x:.2f} {mask_y:.2f}")
+            print(f"{diff_x_seg:.2f} {diff_y_seg:.2f}")
+            if diff_x_seg >= sep_shift or diff_y_seg >= sep_shift:
+                print(f"Large shifts in seg_map recentroiding, check! skipping...")
+                return [], []
+            xo.append(mask_x)
+            yo.append(mask_y)
+        # otherwise return the extracted positions
+        else:
+            xo.append(source_x[match])
+            yo.append(source_y[match])
+    return xo, yo
 
 def get_light_travel_times(ra, dec, time_to_correct):
     """
