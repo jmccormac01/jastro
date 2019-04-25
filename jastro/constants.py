@@ -40,7 +40,7 @@ class Constants(object):
     sec_d = 24*60*60 # s
     # Physics
     Mproton = 1.6726219E-27 # kg
-    boltzmann = 1.38064852E-23 # m^2 kg s^-2 K^-1
+    stefboltz = 5.67E−8 # W m^-2 K^-4
 
     def _list_constants():
         """
