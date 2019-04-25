@@ -38,16 +38,16 @@ def correct_proper_motion(night, pm_ra, pm_dec, coord_to_correct, epoch=2000):
     ------
     None
     """
-    # find the number of decimal years since 2000.0
+    # find the number of decimal years since epoch
     # we ignore the fractional day as this is negligible
     night = datetime.strptime(night, "%Y%m%d").timetuple()
     year = night.tm_year
     year_day = night.tm_yday
-    decimal_years_since_2000 = (year+(year_day/365.25)) - epoch
-    # get the proper motion in degrees since 2000
+    decimal_years_since_epoch = (year+(year_day/365.25)) - epoch
+    # get the proper motion in degrees since epoch
     dec_cor = math.cos(math.radians(coord_to_correct.dec.deg))
-    pm_ra_total = (pm_ra/(1000.0*60.*60.*dec_cor))*decimal_years_since_2000
-    pm_dec_total = (pm_dec/(1000.0*60.*60.))*decimal_years_since_2000
+    pm_ra_total = (pm_ra/(1000.0*60.*60.*dec_cor))*decimal_years_since_epoch
+    pm_dec_total = (pm_dec/(1000.0*60.*60.))*decimal_years_since_epoch
     # correct the SkyCoord object
     corrected_coord = SkyCoord(ra=(coord_to_correct.ra.deg+pm_ra_total)*u.degree,
                                dec=(coord_to_correct.dec.deg+pm_dec_total)*u.degree,

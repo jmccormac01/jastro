@@ -35,6 +35,7 @@ class Constants(object):
     Re = Ree # if not specified, we use the equatorial
     # Misc astronomy
     AU = 1.496E11 # m
+    parsec = 3.0857E16 # m
     # Time
     sec_d = 24*60*60 # s
     # Physics
