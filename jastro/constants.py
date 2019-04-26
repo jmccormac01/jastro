@@ -1,6 +1,7 @@
 """
 List of constants used frequently in astronomical calculations
 """
+import math
 
 # pylint: disable=invalid-name
 
@@ -21,6 +22,7 @@ class Constants(object):
     Lsun = 3.828E26 # W
     Ssun = 1361. # W m^-2
     Teffsun = 5772. # K
+    Rhosun = Msun / ((4./3.)*math.pi*(Rsun**3.))
     # Jupiter
     GMjup = 1.2668653E17 # m^3 s^-2
     Mjup = GMjup/G # kg
