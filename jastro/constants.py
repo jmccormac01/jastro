@@ -22,7 +22,8 @@ class Constants(object):
     Lsun = 3.828E26 # W
     Ssun = 1361. # W m^-2
     Teffsun = 5772. # K
-    Rhosun = Msun / ((4./3.)*math.pi*(Rsun**3.))
+    Rhosun_kgm3 = Msun / ((4./3.)*math.pi*(Rsun**3.))
+    Rhosun_gcm3 = (Msun*1000) / ((4./3.)*math.pi*((Rsun*100)**3.))
     # Jupiter
     GMjup = 1.2668653E17 # m^3 s^-2
     Mjup = GMjup/G # kg
@@ -43,6 +44,7 @@ class Constants(object):
     # Physics
     Mproton = 1.6726219E-27 # kg
     stefboltz = 5.67E-8 # W m^-2 K^-4
+    boltzmann = 1.380649E-23 # J/K
 
     def _list_constants():
         """
