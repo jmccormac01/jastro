@@ -46,14 +46,20 @@ def phase_times(times, epoch, period, phase_offset=0.0):
     """
     return (((times - epoch)/period)+phase_offset)%1
 
-def pc_bin(time, flux, error, bin_width, clip_empty_bins=True):
+def pc_bin(time, flux, error, bin_width, clip_empty_bins=True, mode="mean"):
     """
     """
     bin_edges = np.arange(np.min(time), np.max(time), bin_width)
     digitized = np.digitize(time, bin_edges)
     binned_time = (bin_edges[1:] + bin_edges[:-1]) / 2
-    binned_flux = np.array([np.nan if len(flux[digitized == i]) == 0 else flux[digitized == i].mean() for i in range(1, len(bin_edges))])
-    binned_error = np.array([np.nan if len(error[digitized == i]) == 0 else np.sqrt(np.sum(error[digitized == i]**2.))/len(error[digitized == i]) for i in range(1, len(bin_edges))])
+
+    if mode == "median":
+        binned_flux = np.array([np.nan if len(flux[digitized == i]) == 0 else np.median(flux[digitized == i]) for i in range(1, len(bin_edges))])
+        binned_error = np.array([np.nan if len(error[digitized == i]) == 0 else np.sqrt(np.sum(error[digitized == i]**2.))/len(error[digitized == i]) for i in range(1, len(bin_edges))])
+    else:
+        binned_flux = np.array([np.nan if len(flux[digitized == i]) == 0 else flux[digitized == i].mean() for i in range(1, len(bin_edges))])
+        binned_error = np.array([np.nan if len(error[digitized == i]) == 0 else np.sqrt(np.sum(error[digitized == i]**2.))/len(error[digitized == i]) for i in range(1, len(bin_edges))])
+
     if clip_empty_bins:
         binned_time = binned_time[~np.isnan(binned_flux)]
         binned_flux = binned_flux[~np.isnan(binned_flux)]
