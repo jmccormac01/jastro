@@ -63,7 +63,7 @@ def pc_bin(time, flux, error, bin_width, clip_empty_bins=True, mode="mean"):
     if clip_empty_bins:
         binned_time = binned_time[~np.isnan(binned_flux)]
         binned_flux = binned_flux[~np.isnan(binned_flux)]
-        binned_error = binned_error[~np.isnan(binned_flux)]
+        binned_error = binned_error[~np.isnan(binned_error)]
     return (binned_time, binned_flux, binned_error)
 
 def extract_nights_with_transits(times, flux, err, epoch,
