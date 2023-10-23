@@ -208,7 +208,7 @@ def generate_rsi_rso(number, inner, outer):
     rso = np.ones(number)*outer
     return rsi, rso
 
-def source_extract(filename, sigma, rad_sky_inner, rad_sky_outer,
+def source_extract(filename, sigma, rad_sky_inner=None, rad_sky_outer=None,
                    output=False, seg_map=False, check_image_boundary=False):
     """
     Measure the sky background and locate and extract all stars
@@ -223,8 +223,10 @@ def source_extract(filename, sigma, rad_sky_inner, rad_sky_outer,
         to be flagged as a star
     rad_sky_inner : int, optional
         The inner radius in pixels of the sky annulus
+        Default = None
     rad_sky_outer : int, optional
         The outer radius in pixels of the sky annulus
+        Default = None
     output : str, optional
         The name of the output file containing the positions of
         extracted stars
@@ -276,9 +278,13 @@ def source_extract(filename, sigma, rad_sky_inner, rad_sky_outer,
     if check_image_boundary:
         x, y, object_ids = check_image_boundaries(x, y, object_ids, width, height, border)
 
-    # generate sky annuli
-    n_objects = len(x)
-    rsi, rso = generate_rsi_rso(n_objects, rad_sky_inner, rad_sky_outer)
+    # generate sky annuli if none were found - otherwise just pass back those input
+    if rad_sky_inner is None or rad_sky_outer is None:
+        n_objects = len(x)
+        rsi, rso = generate_rsi_rso(n_objects, rad_sky_inner, rad_sky_outer)
+    else:
+        rsi = rad_sky_inner
+        rso = rad_sky_outer
 
     if output:
         np.savetxt('{}.allstars'.format(output),

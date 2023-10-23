@@ -1,7 +1,6 @@
 """
 Functions for reducing data
 """
-from collections import defaultdict
 import numpy as np
 import ccdproc
 from astropy.io import fits
@@ -11,29 +10,10 @@ import jastro.coords as jcoords
 
 # pylint: disable=invalid-name
 # pylint: disable=no-member
+# pylint: disable=bare-except
 
-def get_image_list(directory='.', glob_exclude='master*'):
-    """
-    Make a list of what images are present in a given
-    directory
-
-    Parameters
-    ----------
-    directory : str
-        The path to the folder to analyse for images
-        Default = '.' (the current directory)
-
-    Returns
-    -------
-        The ccdproc ImageFileCollection of that directory
-
-    Raises
-    ------
-    None
-    """
-    return ccdproc.ImageFileCollection(directory, glob_exclude=glob_exclude)
-
-def make_master_bias(images, bias_keyword='BIAS'):
+def make_master_bias(images, bias_keyword='BIAS',
+                     master_bias_filename="master_bias.fits"):
     """
     If no master bias image is found try making a
     master bias using all biases found in the
@@ -47,6 +27,9 @@ def make_master_bias(images, bias_keyword='BIAS'):
     bias_keyword : str
         Header keyword for bias images
         Default = 'BIAS'
+    master_bias_filename : str
+        Name of master bias file to save
+        Default = 'master_bias.fits'
 
     Returns
     -------
@@ -60,9 +43,9 @@ def make_master_bias(images, bias_keyword='BIAS'):
     """
     bias_list = []
     try:
-        master_bias = ccdproc.CCDData.read('master_bias.fits', unit=u.adu)
+        master_bias = ccdproc.CCDData.read(master_bias_filename, unit=u.adu)
         return master_bias
-    except FileNotFoundError:
+    except:
         # check for no images
         if not images.files:
             return None
@@ -72,13 +55,13 @@ def make_master_bias(images, bias_keyword='BIAS'):
             bias_list.append(ccd)
     try:
         master_bias = ccdproc.combine(bias_list, method='median')
-        master_bias.write('master_bias.fits', overwrite=True)
+        master_bias.write(master_bias_filename, overwrite=True)
         return master_bias
     except IndexError:
         return  None
 
 def make_master_dark(images, master_bias=None, dark_keyword='DARK',
-                     exptime_keyword='EXPTIME'):
+                     exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits"):
     """
     If no master dark image is found try making a
     master dark from all darks found in the
@@ -102,6 +85,9 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
     exptime_keyword : str
         Header keyword for exposure time
         Default = 'EXPTIME'
+    master_dark_filename : str
+        Name of master dark file to save
+        Default = 'master_dark.fits'
 
     Returns
     -------
@@ -119,11 +105,10 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
     dark_list = []
     dark_exp = None
     try:
-        fitsfile = 'master_dark.fits'
-        master_dark = ccdproc.CCDData.read(fitsfile, unit=u.adu)
-        dark_exp = int(fits.open(fitsfile)[0].header[exptime_keyword])
+        master_dark = ccdproc.CCDData.read(master_dark_filename, unit=u.adu)
+        dark_exp = int(fits.open(master_dark_filename)[0].header[exptime_keyword])
         return master_dark, dark_exp
-    except FileNotFoundError:
+    except:
         # check for no images
         if not images.files:
             return None, None
@@ -140,7 +125,7 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
             dark_list.append(ccd)
     try:
         master_dark = ccdproc.combine(dark_list, method='median')
-        master_dark.write('master_dark.fits', overwrite=True)
+        master_dark.write(master_dark_filename, overwrite=True)
         return master_dark, dark_exp
     except IndexError:
         return None, None
@@ -161,14 +146,14 @@ def estimate_sky_level(data):
         masked_data = np.ma.masked_where(((data > mean+sigma*rms) | (data < mean-sigma*rms)), data)
         new_mean = np.ma.average(masked_data)
         new_rms = np.ma.std(masked_data)
-        print('Sky level: {}, RMS: {}'.format(new_mean, new_rms))
+        print(f'Sky level: {new_mean}, RMS: {new_rms}')
         data = masked_data
         mean_diff = abs(new_mean-mean)/new_mean
     return new_mean, new_rms
 
 def make_master_flat(images, filt, master_bias=None, master_dark=None,
-                     dark_exp=30, flat_keyword='Flat Field',
-                     exptime_keyword='EXPTIME'):
+                     dark_exp=30, flat_keyword='FLAT', exptime_keyword='EXPTIME',
+                     master_flat_filename="master_flat.fits"):
     """
     If no master flat is found try making a master flat
     from all the flats in the ImageFileCollection
@@ -202,6 +187,9 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
     exptime_keyword : str, optional
         Header keyword for exposure time
         Default = 'EXPTIME'
+    master_flat_filename : str
+        Name of master flat file to save
+        Default = 'master_flat.fits'
 
     Returns
     -------
@@ -214,17 +202,16 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
     None
     """
     # empty dictionaries for the filtered data
-    flat_list = defaultdict(list)
+    flat_list = []
     try:
-        fitsfile = 'master_flat_{0:s}.fits'.format(filt)
-        master_flat = ccdproc.CCDData.read(fitsfile, unit=u.adu)
+        master_flat = ccdproc.CCDData.read(master_flat_filename, unit=u.adu)
         return master_flat
-    except FileNotFoundError:
+    except:
         # check for no images
         if not images.files:
             return None
         # create the master flat field for each filter
-        print('Reducing flats from filter {0:s}'.format(filt))
+        print(f'Reducing flats from filter {filt}')
         for f in images.files_filtered(imagetyp=flat_keyword, filter=filt):
             print(f)
             with fits.open(f) as fitsfile:
@@ -243,18 +230,18 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
                 print('No master dark, skipping correction...')
             sky_level, _ = estimate_sky_level(ccd.data)
             ccd.data = ccd.data/sky_level
-            flat_list[filt].append(ccd)
+            flat_list.append(ccd)
     try:
-        master_flat = ccdproc.combine(flat_list[filt], method='median')
-        master_flat.write('master_flat_{0:s}.fits'.format(filt), overwrite=True)
-        return master_flat
+        master_flat = ccdproc.combine(flat_list, method='median')
+        master_flat.write(master_flat_filename, overwrite=True)
     except IndexError:
-        print('There are no flats for {0:s}, skipping...'.format(filt))
+        print(f'There are no flats for {filt}, skipping...')
         master_flat = None
+    return master_flat
 
 def correct_data(filename, filt, location, master_bias=None, master_dark=None,
                  master_flat=None, dark_exp=30, exptime_keyword='EXPTIME',
-                 jd_keyword='JD', ra_keyword='RA', dec_keyword='DEC',
+                 dateobs_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC',
                  output_reduced_frames=False):
     """
     Correct a science image using the available
@@ -292,9 +279,9 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
     exptime_keyword : str, optional
         Header keyword for exposure time
         Default = 'EXPTIME'
-    jd_keyword : str, optional
-        Header keyword for the Julian Date
-        Default = 'JD'
+    dateobs_keyword : str, optional
+        Header keyword for the date obs start
+        Default = 'DATE-OBS'
     ra_keyword : str, optional
         Header keyword for the Right Ascension
         Default = 'RA'
@@ -320,14 +307,15 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
     ------
     None
     """
-    print('Reducing {0:s}...'.format(filename))
+    print(f'Reducing {filename}...')
     with fits.open(filename) as fitsfile:
         # collect/correct some header values
         hdr = fitsfile[0].header
         data_exp = int(hdr[exptime_keyword])
         half_exptime = float(data_exp)/2.
-        time_jd = Time(float(hdr[jd_keyword]), format='jd',
-                       scale='utc', location=location)
+        time_isot = Time(hdr[dateobs_keyword], format='isot',
+                         scale='utc', location=location)
+        time_jd = Time(time_isot.jd, format='jd', scale='utc', location=location)
         # correct to mid exposure time
         time_jd = time_jd + half_exptime*u.second
         ra = hdr[ra_keyword]
@@ -351,7 +339,7 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
     if master_flat:
         ccd = ccdproc.flat_correct(ccd, master_flat)
     else:
-        print('No master flat for {0:s}, skipping correction...'.format(filt))
+        print(f'No master flat for {filt}, skipping correction...')
 
     # after calibrating we get np.float64 data
     # if there are no calibrations we maintain dtype = np.uint16
@@ -361,7 +349,8 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
         ccd.data = ccd.data.astype(np.float64)
     # output the files
     if output_reduced_frames:
-        new_filename = '{}_r.fts'.format(filename.split('.fts')[0])
+        prefix = filename.split('.fts')[0]
+        new_filename = f'{prefix}_r.fts'
         fits.writeto(new_filename, ccd.data, header=hdr, overwrite=True)
     return ccd, time_jd, time_bary, time_helio
 

@@ -3,15 +3,20 @@ Functions for extracting photometry
 """
 import numpy as np
 import sep
-from jastro.ds9 import set_ds9
-from jastro.reduction import find_max_pixel_value
+from jastro.ds9 import dset
+from jastro.reduce import find_max_pixel_value
 
 # pylint: disable=invalid-name
 # pylint: disable=no-member
+# pylint: disable=c-extension-no-member
+# pylint: disable=line-too-long
+# pylint: disable=consider-using-f-string
 
-def phot(data, shift, config, filename, jd, bjd, hjd,
+# TODO: redo the output format later
+
+def phot(data, shift, x, y, rsi, rso, aper_radii, filename, jd, bjd, hjd,
          phot_filename_prefix="rtp", ds9_name=None, draw_regions=False,
-         gain=1.00, index_offset=1.0):
+         gain=1.00, index_offset=1):
     """
     Measure the photometry of the given image at the positions
     requested. Output the results to a photometry file and
@@ -24,8 +29,16 @@ def phot(data, shift, config, filename, jd, bjd, hjd,
     shift : donuts.image.Image
         The shift between the reference and this image is found
         in the image object for the shift measurment
-    config : array-like
-        Dictionary of the processing configuration
+    x : array
+        X postions to extract photometry
+    y : array
+        Y postions to extract photometry
+    rsi : array
+        Inner sky annulii radii
+    rso : array
+        Outer sky annulii radii
+    aper_radii : array
+        Sequence of aperture radii to extract
     filename : str
         The name of the file we are extracting photometry from
     jd : astropy.time.Time
@@ -46,6 +59,9 @@ def phot(data, shift, config, filename, jd, bjd, hjd,
     gain : float, optional
         CCD gain setting
         Default = 1.00
+    index_offset : int
+        Index offset between python and ds9
+        default = 1
 
     Returns
     -------
@@ -55,16 +71,24 @@ def phot(data, shift, config, filename, jd, bjd, hjd,
     ------
     None
     """
-    x = np.array(config['x'])-shift.x.value
-    y = np.array(config['y'])-shift.y.value
+    x = np.array(x)-shift.x.value
+    y = np.array(y)-shift.y.value
     # not CCDData object
     data = data.data
-    # output the photometry with .photAPERTURE_SIZE extension
-    for r, r_aper in enumerate(config['aperture_r']):
-        outfile = open("{0:s}.phot{1:d}".format(phot_filename_prefix, r_aper), 'a')
-        # loop over each object in the file
+    # loop over each aperture size
+    for r, r_aper in enumerate(aper_radii):
+        # preamble
         out_str = "{0:s}  {1:.8f}  {2:.8f}  {3:.8f}  ".format(filename, jd.value, bjd.value, hjd.value)
-        for i, j, inner, outer in zip(x, y, config['inner'], config['outer']):
+        # do the phot
+        flux, fluxerr, _ = sep.sum_circle(data, x, y, r_aper,
+                                          subpix=0,
+                                          bkgann=(rsi, rso),
+                                          gain=gain)
+        flux_w_sky, fluxerr_w_sky, _ = sep.sum_circle(data, x, y, r_aper,
+                                                      subpix=0,
+                                                      gain=gain)
+        # loop over each object and compile the output
+        for i, j, inner, outer, f, fe, fs, fse in zip(x, y, rsi, rso, flux, fluxerr, flux_w_sky, fluxerr_w_sky):
             if ds9_name and draw_regions and r == 0:
                 annulus = '{{annulus {0} {1} {2} {3} # color=green}}'.format(i+index_offset,
                                                                              j+index_offset,
@@ -72,20 +96,14 @@ def phot(data, shift, config, filename, jd, bjd, hjd,
                 circle = '{{circle {0} {1} {2} # colo=red}}'.format(i+index_offset,
                                                                     j+index_offset,
                                                                     r_aper)
-                set_ds9(ds9_name, "regions command '{}'".format(annulus))
-                set_ds9(ds9_name, "regions command '{}'".format(circle))
-            flux, fluxerr, _ = sep.sum_circle(data, i, j, r_aper,
-                                              subpix=0,
-                                              bkgann=(inner, outer),
-                                              gain=gain)
-            flux_w_sky, fluxerr_w_sky, _ = sep.sum_circle(data, i, j, r_aper,
-                                                          subpix=0,
-                                                          gain=gain)
+                dset(ds9_name, f"regions command '{annulus}'")
+                dset(ds9_name, f"regions command '{circle}'")
             max_pixel_value = find_max_pixel_value(data, int(i), int(j), r_aper+1)
             temp = "{:.2f}  {:.2f}  {:.2f}  {:.2f}  {:.2f}  {:.2f}  {:.2f}  ".format(
-                float(i), float(j), float(flux), float(fluxerr),
-                float(flux_w_sky), float(fluxerr_w_sky), float(max_pixel_value))
+                float(i), float(j), float(f), float(fe), float(fs), float(fse), float(max_pixel_value))
             out_str = out_str + temp
         out_str = out_str + "\n"
-        outfile.write(out_str)
-        outfile.close()
+
+        # output the photometry with .photAPERTURE_SIZE extension
+        with open(f"{phot_filename_prefix}.phot{r_aper}", 'a') as outfile:
+            outfile.write(out_str)
