@@ -241,7 +241,7 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
 
 def correct_data(filename, filt, location, master_bias=None, master_dark=None,
                  master_flat=None, dark_exp=30, exptime_keyword='EXPTIME',
-                 dateobs_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC',
+                 dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC',
                  output_reduced_frames=False):
     """
     Correct a science image using the available
@@ -279,7 +279,7 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
     exptime_keyword : str, optional
         Header keyword for exposure time
         Default = 'EXPTIME'
-    dateobs_keyword : str, optional
+    dateobs_start_keyword : str, optional
         Header keyword for the date obs start
         Default = 'DATE-OBS'
     ra_keyword : str, optional
@@ -313,7 +313,7 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
         hdr = fitsfile[0].header
         data_exp = int(hdr[exptime_keyword])
         half_exptime = float(data_exp)/2.
-        time_isot = Time(hdr[dateobs_keyword], format='isot',
+        time_isot = Time(hdr[dateobs_start_keyword], format='isot',
                          scale='utc', location=location)
         time_jd = Time(time_isot.jd, format='jd', scale='utc', location=location)
         # correct to mid exposure time
@@ -379,4 +379,5 @@ def find_max_pixel_value(data, x, y, radius):
     ------
     None
     """
-    return round(data[y-radius:y+radius, x-radius:x+radius].ravel().max(), 2)
+    return round(data[int(y-radius):int(y+radius),
+                      int(x-radius):int(x+radius)].ravel().max(), 2)

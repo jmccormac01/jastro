@@ -66,7 +66,7 @@ def start(ds9_name):
     ------
     None
     """
-    os.system(f'ds9 -title {ds9_name} &')
+    os.system(f'/Applications/SAOImageDS9.app/Contents/MacOS/ds9 -title {ds9_name} &')
 
 def display(ds9_name, image_id):
     """
@@ -249,7 +249,7 @@ def read_region_file(region_filename, index_offset=1):
         match = r.match(i.comment)
         if match:
             lab = match.group('label')
-            print(f'Found star {lab} in {filename}')
+            print(f'Found star {lab} in {region_filename}')
             try:
                 comparisons[int(lab)] = ['{0:.2f}'.format(float(i.coord_list[0])-index_offset),
                                          '{0:.2f}'.format(float(i.coord_list[1])-index_offset),
