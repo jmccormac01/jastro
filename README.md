@@ -6,31 +6,31 @@
 git clone https://github.com/jmccormac01/jastro.git
 ```
 
-# Astronomical constants
+# Data Reduction and Aperture Photometry
 
-A list of useful constants which appear frequently in astronomical calculations
+The ```example.py``` script shows the steps for a typical
+CCD reduction with aperture photometry to extract the
+differential light curve of a varying source.
 
-### Accessing constants
+Two configuration files are needed:
+   1. An instrument level config file (static parameters, see example below)
+   1. A nightly config file with (variable parameters, see example below)
 
-```python
->>> from jastro.constants import Constants as c
->>> print(c.G)
-6.67408e-11
-```
+The config info is used to set up the data reduction and photometry routines.
+For aperture photometry a region file corresponding to the reference image
+must be supplied. The regions should mark the location of the sky annulii
+for each comparison star (numbered 1, 2. ... N) and the target (mark with
+a name, e.g. WASP-39). See example region file below
 
-### Listing supported constants
+### Example instrument config
 
-```python
->>> c._list_constants()
-G Msun Rsun Lsun Mjup Rjup Mproton boltzmann AU sec_d
-```
+### Example nightly config
 
-# Light curve handling
+### Example region file
 
-A series of scripts for processing photometric light curves
 
-### Converting differential magnitudes to relative fluxes
 
+# Utilities
 
 
 # Contributors
