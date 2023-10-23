@@ -1,6 +1,11 @@
 """
 Housekeeping functions for reducing data
 """
+from datetime import (
+    datetime,
+    timedelta
+    )
+from astropy.io import fits
 import ccdproc
 
 def get_image_list(directory='.', glob_exclude='master*'):
@@ -23,3 +28,55 @@ def get_image_list(directory='.', glob_exclude='master*'):
     None
     """
     return ccdproc.ImageFileCollection(directory, glob_exclude=glob_exclude)
+
+def get_target_id(filename, object_keyword='OBJECT'):
+    """
+    Get the target ID from the reference image
+
+    Parameters
+    ----------
+    filename : str
+        Name of the image from which to determine the night ID from
+    object_keyword : str, optional
+        Header keyword for the target ID
+        Default = 'OBJECT'
+
+    Returns
+    -------
+    target_id : str
+        Name of the target from the reference image
+
+    Raises
+    ------
+    None
+    """
+    with fits.open(filename) as fitsfile:
+        target_id = fitsfile[0].header[object_keyword]
+    return target_id
+
+def get_night_id(filename, dateobs_keyword='DATE-OBS'):
+    """
+    Get the YYYYMMDD night ID from the reference image
+
+    Parameters
+    ----------
+    filename : str
+        Name of the image from which to determine the night ID from
+    dateobs_keyword : str, optional
+        Header keyword for the date of observation
+        Default = 'DATE-OBS'
+
+    Returns
+    -------
+    night : str
+        YYYYMMDD night of observation
+
+    Raises
+    ------
+    None
+    """
+    with fits.open(filename) as fitsfile:
+        date_obs = datetime.strptime(fitsfile[0].header[dateobs_keyword].split('.')[0], "%Y-%m-%dT%H:%M:%S")
+    if date_obs.hour < 12:
+        date_obs = date_obs - timedelta(days=1)
+    return date_obs.strftime('%Y%m%d')

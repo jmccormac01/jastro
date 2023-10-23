@@ -97,7 +97,7 @@ Contents of ```TOIXXX-CAM3-20230101200000.reg```
 # Region file format: DS9 version 4.1
 global color=green dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1
 image
-annulus(4812.2087,3195.6101,9.0,14) # text={TOIXXX}
+annulus(4812.2087,3195.6101,9.0,14.0) # text={TOIXXX}
 annulus(4635.7325,3060.4728,20.0,30.0) # text={1}
 annulus(4986.6286,3189.2174,20.0,30.0) # text={2}
 annulus(5013.2188,3062.3943,20.0,30.0) # text={3}
