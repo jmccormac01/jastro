@@ -54,16 +54,17 @@ def bin_time_flux_error(time, flux, error, bin_fact):
     Works with 2D arrays of flux and errors
     """
     n_binned = int(len(time)/bin_fact)
-    time_b = np.average(time.reshape(n_binned, bin_fact), axis=1)
+    clip = n_binned*bin_fact
+    time_b = np.average(time[:clip].reshape(n_binned, bin_fact), axis=1)
     # determine if 1 or 2d flux/err inputs
     if len(flux.shape) == 1:
-        flux_b = np.average(flux.reshape(n_binned, bin_fact), axis=1)
-        error_b = np.average(error.reshape(n_binned, bin_fact), axis=1)
+        flux_b = np.average(flux[:clip].reshape(n_binned, bin_fact), axis=1)
+        error_b = np.average(error[:clip].reshape(n_binned, bin_fact), axis=1)
     else:
         # assumed 2d with 1 row per star
         n_stars = len(flux)
-        flux_b = np.average(flux.reshape((n_stars, n_binned, bin_fact)), axis=2)
-        error_b = np.average(error.reshape((n_stars, n_binned, bin_fact)), axis=2)
+        flux_b = np.average(flux[:clip].reshape((n_stars, n_binned, bin_fact)), axis=2)
+        error_b = np.average(error[:clip].reshape((n_stars, n_binned, bin_fact)), axis=2)
     return time_b, flux_b, error_b
 
 def extract_nights_with_transits(times, flux, err, epoch,
@@ -234,6 +235,7 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
 
     # get the binned RMS
     rmsb = np.std(lightcurve_nb[index_b])
+    print(f'RMS-{fit_type}b: {rmsb:.4f}')
 
     # define the ylim if required
     if ylim:

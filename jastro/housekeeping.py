@@ -6,7 +6,60 @@ from datetime import (
     timedelta
     )
 from astropy.io import fits
+import fitsio
 import ccdproc
+
+
+def load_fits_image(filename, ext=0):
+    """
+    Read a fits image and header with fitsio
+
+    Parameters
+    ----------
+    filename : str
+        filename to load
+    ext : int
+        extension to load
+
+    Returns
+    -------
+    data : array
+        data from the corresponding extension
+    header : fitsio.header.FITSHDR
+        list from file header
+
+    Raises
+    ------
+    None
+    """
+    data, header = fitsio.read(filename, header=True, ext=ext)
+    return data, header
+
+def write_fits_image(filename, data, header, clobber=True):
+    """
+    Write a fits image to disc with fitsio
+
+    Parameters
+    ----------
+    filename : str
+        name | path of image to write
+    data : array
+        data to save
+    header : list of dicts
+        name, value, comment for each entry
+    clobber : boolean
+        overwrite existing image?
+        default = True
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    None
+    """
+    fitsio.write(filename, data, header=header, clobber=clobber)
 
 def get_image_list(directory='.', glob_exclude='master*'):
     """

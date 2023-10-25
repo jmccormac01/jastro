@@ -7,10 +7,28 @@ from astropy.io import fits
 from astropy.time import Time
 import astropy.units as u
 import jastro.coords as jcoords
+import jastro.housekeeping as jhk
 
 # pylint: disable=invalid-name
 # pylint: disable=no-member
 # pylint: disable=bare-except
+
+def extract_overscan_correction(data, os_region):
+    """
+    Take an image and extract the overscan correction
+    """
+    x1, x2 = map(int, os_region.split(',')[0][1:].split(":"))
+    y1, y2 = map(int, os_region.split(',')[1][:-1].split(":"))
+
+    # extract the overscan region
+    os_data = data[y1-1:y2, x1-1:x2]
+
+    # detemine direction of overscan, along row or columns?
+    if x2-x1 > y2-y1:
+        os_correction = np.median(os_data, axis=0)
+    else:
+        os_correction = np.median(os_data, axis=1)
+    return os_correction
 
 def make_master_bias(images, bias_keyword='BIAS',
                      master_bias_filename="master_bias.fits"):
@@ -129,6 +147,83 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
         return master_dark, dark_exp
     except IndexError:
         return None, None
+
+def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
+                         exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits"):
+    """
+    If no master dark image is found try making a
+    master dark from all darks found in the
+    ImageFileCollection object.
+
+    If a master bias image is provided the darks
+    are first corrected for their bias level
+    before combination
+
+    Bias correction is done using the overscane region
+
+    Parameters
+    ----------
+    images : object ccdproc.ImageFileCollection
+        Object containing a list of images in the
+        working directory
+    overscan_keyword : str
+        Overscan region defined as '[x1:x2,y1:y2]'
+    dark_keyword : str
+        Header keyword for dark images
+        Default = 'DARK'
+    exptime_keyword : str
+        Header keyword for exposure time
+        Default = 'EXPTIME'
+    master_dark_filename : str
+        Name of master dark file to save
+        Default = 'master_dark.fits'
+
+    Returns
+    -------
+    master_dark : array-like | None
+        A master dark image array, or
+        None if no darks are found
+    dark_exp : int | None
+        The exposure time of the dark frames, or
+        None if no darks are found
+
+    Raises
+    ------
+    None
+    """
+    dark_list = []
+    dark_exp = None
+    try:
+        master_dark, header = jhk.load_fits_image(master_dark_filename)
+        dark_exp = int(header[exptime_keyword])
+        return master_dark, dark_exp
+    except:
+        # check for no images
+        if not images.files:
+            return None, None
+        for f in images.files_filtered(imagetyp=dark_keyword):
+            print(f)
+            # load the data
+            ccd, header = jhk.load_fits_image(f)
+            # load few header items
+            dark_exp = int(header[exptime_keyword])
+            os_region = header[overscan_keyword]
+            # fetch overscan correction
+            os_corr = extract_overscan_correction(ccd, os_region)
+            # correct the frame
+            ccd_corr = ccd - os_corr
+            # save dark signal for combining
+            dark_list.append(ccd_corr)
+        dark_list = np.array(dark_list)
+
+        if len(dark_list) > 0:
+            master_dark = np.median(dark_list, axis=0)
+            header["N_STACK"] = len(dark_list)
+            jhk.write_fits_image(master_dark_filename, master_dark,
+                                 header, clobber=True)
+            return master_dark, dark_exp
+        else:
+            return None, None
 
 def estimate_sky_level(data):
     """

@@ -40,8 +40,8 @@ def is_running(ds9_name):
     for process in processes:
         if "ds9" in process and f" -title {ds9_name}" in process:
             print('Hurray! Found DS9 window process')
-            print('Waiting 20s to be sure ds9 is open...')
-            time.sleep(20)
+            print('Waiting 5s to be sure ds9 is open...')
+            time.sleep(5)
             ds9 = True
             break
     else:
