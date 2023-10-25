@@ -183,7 +183,7 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
     master_dark : array-like | None
         A master dark image array, or
         None if no darks are found
-    dark_exp : int | None
+    dark_exp : float | None
         The exposure time of the dark frames, or
         None if no darks are found
 
@@ -195,7 +195,7 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
     dark_exp = None
     try:
         master_dark, header = jhk.load_fits_image(master_dark_filename)
-        dark_exp = int(header[exptime_keyword])
+        dark_exp = round(float(header[exptime_keyword]), 2)
         return master_dark, dark_exp
     except:
         # check for no images
@@ -206,7 +206,7 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
             # load the data
             ccd, header = jhk.load_fits_image(f)
             # load few header items
-            dark_exp = int(header[exptime_keyword])
+            dark_exp = round(float(header[exptime_keyword]), 2)
             os_region = header[overscan_keyword]
             # fetch overscan correction
             os_corr = extract_overscan_correction(ccd, os_region)
@@ -333,6 +333,100 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
         print(f'There are no flats for {filt}, skipping...')
         master_flat = None
     return master_flat
+
+def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
+                         dark_exp=30, flat_keyword='FLAT', exptime_keyword='EXPTIME',
+                         master_flat_filename="master_flat.fits"):
+    """
+    If no master flat is found try making a master flat
+    from all the flats in the ImageFileCollection
+    object.
+
+    If a master bias is provided the flats are first
+    corrected for their bias level.
+
+    Similarly, if a master dark is provided the flats
+    are corrected for their dark current.
+
+    Parameters
+    ----------
+    images : object ccdproc.ImageFileCollection
+        Object containing a list of images in the
+        working directory
+    filt : str
+        The name of the filter used for this data
+    overscan_keyword : str
+        Overscan region defined as '[x1:x2,y1:y2]'
+    master_dark : array-like, optional
+        Array containing the master dark image
+        Default = None
+    dark_exp : int, optional
+        Exposure time for master dark
+        Default = 30
+    flat_keyword : str, optional
+        Header keyword for the flat fields
+        Default = 'Flat Field'
+    exptime_keyword : str, optional
+        Header keyword for exposure time
+        Default = 'EXPTIME'
+    master_flat_filename : str
+        Name of master flat file to save
+        Default = 'master_flat.fits'
+
+    Returns
+    -------
+    master_flat : array-like | None
+        A master flat image array, or
+        None if no flats are found
+
+    Raises
+    ------
+    None
+    """
+    # empty dictionaries for the filtered data
+    flat_list = []
+    try:
+        master_flat = jhk.load_fits_image(master_flat_filename)
+        return master_flat
+    except:
+        # check for no images
+        if not images.files:
+            return None
+        # create the master flat field for each filter
+        print(f'Reducing flats from filter {filt}')
+        for f in images.files_filtered(imagetyp=flat_keyword, filter=filt):
+            print(f)
+            # load the data
+            ccd, header = jhk.load_fits_image(f)
+            # load few header items
+            data_exp = float(header[exptime_keyword])
+            os_region = header[overscan_keyword]
+            # fetch overscan correction
+            os_corr = extract_overscan_correction(ccd, os_region)
+            # correct the frame for the overscan
+            ccd_corr = ccd - os_corr
+            # correct for dark current if master_dark
+            if master_dark is not None:
+                # scale the dark signal before correcting
+                ccd_corr = ccd_corr - (master_dark * (data_exp/dark_exp))
+            else:
+                print('No master dark, skipping correction...')
+            # estimate sky level
+            sky_level, _ = estimate_sky_level(ccd_corr)
+            # normalise by the sky level
+            ccd_corr_norm = ccd_corr/sky_level
+            # save dark signal for combining
+            flat_list.append(ccd_corr_norm)
+        flat_list = np.array(flat_list)
+
+        if len(flat_list) > 0:
+            master_flat = np.median(flat_list, axis=0)
+            jhk.write_fits_image(master_flat_filename, master_flat,
+                                 header=False, clobber=True)
+            return master_flat
+        else:
+            print(f'There are no flats for {filt}, skipping...')
+            return None
 
 def correct_data(filename, filt, location, master_bias=None, master_dark=None,
                  master_flat=None, dark_exp=30, exptime_keyword='EXPTIME',
