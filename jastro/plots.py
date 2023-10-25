@@ -64,13 +64,13 @@ def plot_comparison_stars(t, comparisons):
         cbesty[i] = np.polyval(coeffs[i], t)
         # flatten and get RMS
         crms[i] = np.std(comparisons[i] / cbesty[i])
-    print(crms)
-    print('Average RMS: {0:.4f}'.format(float(np.average(crms))))
+    crms_avg = np.average(crms)
+    print(f'Average RMS: {crms_avg:.4f}')
 
     # now do the plotting
     for i in range(0, len(comparisons)):
         fig = plt.figure(i+1, figsize=(10, 10))
-        fig.suptitle('Comparison Star {0:d}'.format(i+1))
+        fig.suptitle(f'Comparison Star {i+1:d}')
         c = 0
         r = 0
         for j in range(0, len(comparisons)):
@@ -79,12 +79,12 @@ def plot_comparison_stars(t, comparisons):
             ratio = comparisons[i]/comparisons[j]
             ratio_normalised = ratio / np.average(ratio[:10])
             ax.plot(t, ratio_normalised, 'r.')
-            ax.set_title('ratio with comparison {0:d}'.format(j+1))
+            ax.set_title(f'ratio with comparison {j+1:d}')
             c += 1
             if c > NCOLS - 1:
                 c = 0
                 r += SUB_ROWS
-        fig.savefig('Comparisons_wrt_{}.png'.format(i+1))
+        fig.savefig(f'Comparisons_wrt_{i+1}.png')
     plt.show()
 
 def plot_star_fluxes(t, comparisons, target, aperture_radius):
@@ -102,5 +102,5 @@ def plot_star_fluxes(t, comparisons, target, aperture_radius):
     ax.set_ylabel('Flux')
     ax.set_title('Raw Fluxes')
     ax.legend((leg), loc=1)
-    fig.savefig('RawFluxes_A{}.png'.format(aperture_radius))
+    fig.savefig(f'RawFluxes_A{aperture_radius}.png')
     plt.show()

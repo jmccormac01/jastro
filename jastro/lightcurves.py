@@ -6,6 +6,7 @@ from collections import (
     defaultdict
     )
 import numpy as np
+import matplotlib.pyplot as plt
 
 # pylint: disable=invalid-name
 
@@ -46,25 +47,24 @@ def phase_times(times, epoch, period, phase_offset=0.0):
     """
     return (((times - epoch)/period)+phase_offset)%1
 
-def pc_bin(time, flux, error, bin_width, clip_empty_bins=True, mode="mean"):
+def bin_time_flux_error(time, flux, error, bin_fact):
     """
-    """
-    bin_edges = np.arange(np.min(time), np.max(time), bin_width)
-    digitized = np.digitize(time, bin_edges)
-    binned_time = (bin_edges[1:] + bin_edges[:-1]) / 2
+    Use reshape to bin light curve data, clip under filled bins
 
-    if mode == "median":
-        binned_flux = np.array([np.nan if len(flux[digitized == i]) == 0 else np.median(flux[digitized == i]) for i in range(1, len(bin_edges))])
-        binned_error = np.array([np.nan if len(error[digitized == i]) == 0 else np.sqrt(np.sum(error[digitized == i]**2.))/len(error[digitized == i]) for i in range(1, len(bin_edges))])
+    Works with 2D arrays of flux and errors
+    """
+    n_binned = int(len(time)/bin_fact)
+    time_b = np.average(time.reshape(n_binned, bin_fact), axis=1)
+    # determine if 1 or 2d flux/err inputs
+    if len(flux.shape) == 1:
+        flux_b = np.average(flux.reshape(n_binned, bin_fact), axis=1)
+        error_b = np.average(error.reshape(n_binned, bin_fact), axis=1)
     else:
-        binned_flux = np.array([np.nan if len(flux[digitized == i]) == 0 else flux[digitized == i].mean() for i in range(1, len(bin_edges))])
-        binned_error = np.array([np.nan if len(error[digitized == i]) == 0 else np.sqrt(np.sum(error[digitized == i]**2.))/len(error[digitized == i]) for i in range(1, len(bin_edges))])
-
-    if clip_empty_bins:
-        binned_time = binned_time[~np.isnan(binned_flux)]
-        binned_flux = binned_flux[~np.isnan(binned_flux)]
-        binned_error = binned_error[~np.isnan(binned_error)]
-    return (binned_time, binned_flux, binned_error)
+        # assumed 2d with 1 row per star
+        n_stars = len(flux)
+        flux_b = np.average(flux.reshape((n_stars, n_binned, bin_fact)), axis=2)
+        error_b = np.average(error.reshape((n_stars, n_binned, bin_fact)), axis=2)
+    return time_b, flux_b, error_b
 
 def extract_nights_with_transits(times, flux, err, epoch,
                                  period, t14, transit_type='full'):
@@ -104,7 +104,7 @@ def extract_nights_with_transits(times, flux, err, epoch,
                 if p >= 1-phase_lim or p <= phase_lim:
                     hits += 1
             if hits == 0:
-                print("Delete transit {}, no points within phase_lim".format(night))
+                print(f"Delete transit {night}, no points within phase_lim")
                 to_delete.append(night)
     elif transit_type == 'full':
         print('Checking for only full transits...')
@@ -113,9 +113,9 @@ def extract_nights_with_transits(times, flux, err, epoch,
             hits_l = 0
             hits_p = 0
             for p in nights[night]['phase']:
-                if p <= 1-phase_lim and p > 0.5:
+                if 0.5 < p <= 1-phase_lim:
                     hits_l += 1
-                elif p >= phase_lim and p < 0.5:
+                elif phase_lim <= p < 0.5:
                     hits_p += 1
             if hits_l < 10 or hits_p < 10:
                 to_delete.append(night)
@@ -123,8 +123,152 @@ def extract_nights_with_transits(times, flux, err, epoch,
         return None
 
     # do the final cut
-    print("N nights pre-clean-up: {}".format(len(nights)))
+    print(f"N nights pre-clean-up: {len(nights)}")
     for d in to_delete:
         del nights[d]
-    print("N nights post-clean-up: {}".format(len(nights)))
+    print(f"N nights post-clean-up: {len(nights)}")
     return nights
+
+def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
+              target_id, night_id, fit_type=1, fit_low=None,
+              fit_high=None, ylim=None):
+    """
+    Basic fitting of transit lightcurve until we have
+    something more sophisticated. Not happy with this
+    but it will do for now (If I am reading this 6 months
+    from now - 20160708, tut tut!)
+
+    Parameters
+    ----------
+    filt : str
+        Filter used for observations
+    t : array-like
+        Times of data points
+    t0 : int
+        Integer day of the first data point
+    lightcurve : array-like
+        Lightcurve data array
+    lightcurve_err : array-like
+        Error on Lightcurve
+    r_aper : float
+        Radius of photometry aperture
+    bin_fact : int
+        Number of data points to bin together
+    target_id : str
+        Name of object
+    night_id : str
+        Night of observation
+    fit_type : int, optional
+        Order of the polynomal fit to the out of transit data
+        Default = 1 (Only 1 or 2 supported)
+    fit_low : float
+        Time below which to fit during normalisation
+        Time assumed in fractional day
+        Default = None
+    fit_high : float
+        Time above which to fit during normalisation
+        Time assumed in fractional day
+        Default = None
+    ylim : str | None, optional
+        Comma-separated string giving the lower and upper
+        bounds of the Y-axis in the final transit plot
+        Default = None
+
+    Returns
+    -------
+    lightcurve_n : array-like
+        Normalised lightcurve, still in flux units
+    lightcurve_err_n : array-like
+        Error on lightcurve_n
+
+    Raises
+    ------
+    None
+    """
+    # determine which sections of the data to fit
+    if fit_low is not None and fit_high is not None:
+        print('Fitting pre and post...')
+        index = np.where(((t < fit_low) | (t > fit_high)))[0]
+    elif fit_low is not None and fit_high is None:
+        print('Fitting pre...')
+        index = np.where(t < fit_low)[0]
+    elif fit_low is None and fit_high is not None:
+        print('Fitting post...')
+        index = np.where(t > fit_high)[0]
+    else:
+        print('Fitting everything...')
+        index = np.where(t > 0.0)[0]
+
+    # crude fit
+    if fit_type > 0:
+        # REPLACE THIS WITH SOMETHING MUCH BETTER!
+        # 1D or 2D fit to OOT data
+        coeffs = np.polyfit(t[index], lightcurve[index], fit_type)
+        besty = np.polyval(coeffs, t)
+    elif fit_type == 0:
+        # use an average of the fit_sect area to normalise
+        # this is used for cases where only one OOT exists
+        # and fitting a line cocks things up
+        besty = np.full(len(t), np.average(lightcurve[index]))
+    else:
+        # use this to normalise fluxes from a ratio of previous night
+        scale = input('Enter scaling factor: ')
+        besty = np.full(len(t), float(scale))
+    lightcurve_n = lightcurve / besty
+    lightcurve_err_n = lightcurve_err / lightcurve_n
+    rms = np.std(lightcurve_n[index])
+    print(f'RMS-{fit_type}: {rms:.4f}')
+
+    # bin up the data
+    tb, lightcurve_nb, _ = bin_time_flux_error(t, lightcurve_n,
+                                               lightcurve_err_n, bin_fact)
+    # work out the binned indexes
+    if fit_low is not None and fit_high is not None:
+        index_b = np.where(((tb < fit_low) | (tb > fit_high)))[0]
+    elif fit_low is not None and fit_high is None:
+        index_b = np.where(tb < fit_low)[0]
+    elif fit_low is None and fit_high is not None:
+        index_b = np.where(tb > fit_high)[0]
+    else:
+        index_b = np.where(tb > 0.0)[0]
+
+    # get the binned RMS
+    rmsb = np.std(lightcurve_nb[index_b])
+
+    # define the ylim if required
+    if ylim:
+        y_llim, y_ulim = ylim.split(',')
+        y_llim = float(y_llim)
+        y_ulim = float(y_ulim)
+    fig, ax = plt.subplots(3, sharex=True, figsize=(10, 10))
+    # raw data
+    ax[0].errorbar(t, lightcurve, yerr=lightcurve_err, fmt='.', color='r', ecolor='lightgrey')
+    ax[0].plot(t, besty, 'k--')
+    ax[0].set_ylabel('Target / Comparison')
+    ax[0].legend((f'{fit_type}D polyfit', 'Data',), loc='best')
+    ax[0].set_title('Raw Lightcurve')
+    ax[0].set_xlim(min(t)-0.05, max(t)+0.07)
+    # unbinned data
+    ax[1].errorbar(t, lightcurve_n, yerr=lightcurve_err_n, fmt='.', color='r', ecolor='lightgrey')
+    ax[1].set_ylabel('Normalised Flux')
+    ax[1].set_title(f'Raw Lightcurve / {fit_type}D Model')
+    ax[1].legend((f'RMS-{fit_type} = {rms:.4f}',), loc='best')
+    if ylim:
+        ax[1].set_ylim(y_llim, y_ulim)
+    ax[1].set_xlim(min(t)-0.05, max(t)+0.07)
+    # binned data
+    ax[2].plot(tb, lightcurve_nb, 'r.')
+    ax[2].set_ylabel('Normalised Flux (binned)')
+    ax[2].set_xlabel(f'JD - {t0:d}+')
+    ax[2].set_title(f'Raw Lightcurve / {fit_type}D Model (binned x {bin_fact:d})')
+    ax[2].legend((f'RMS-{fit_type}b = {rmsb:.4f}',), loc='best')
+    if ylim:
+        ax[2].set_ylim(y_llim, y_ulim)
+    ax[2].set_xlim(min(t)-0.05, max(t)+0.07)
+
+    plotname = f"{target_id}-{filt}-{night_id}-F{fit_type}-A{r_aper}.png"
+    fig.tight_layout()
+    fig.savefig(plotname)
+    plt.show()
+    return lightcurve_n, lightcurve_err_n
+
