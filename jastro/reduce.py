@@ -543,6 +543,107 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
         fits.writeto(new_filename, ccd.data, header=hdr, overwrite=True)
     return ccd, time_jd, time_bary, time_helio
 
+def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=None,
+                     master_flat=None, dark_exp=30, exptime_keyword='EXPTIME',
+                     dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC'):
+    """
+    Correct a science image using the available
+    master calibrations. Skip a calibration step if the
+    master frame does not exist.
+
+    No reduced file is written in this new scheme.
+    Instead, the corrected data is passed directly
+    to the phot() routine, photometry is done as per
+    the configuration and the photometry is written out
+    only.
+
+    Parameters
+    ----------
+    filename : str
+        Name of the image to process
+    filt : str
+        The name of the filter used for this data
+    location : astropy.coordinates.EarthLocation
+        The EarthLocation of the observatory where the data
+        was taken. This is used for light travel time
+        calculations
+    overscan_keyword : str
+        Overscan region defined as '[x1:x2,y1:y2]'
+    master_dark : array-like, optional
+        Array containing the master dark image
+        Default = None
+    master_flat : array-like, optional
+        Array containing the master flat image
+        Default = None
+    dark_exp : int, optional
+        Exposure time for master dark
+        Default = 30
+    exptime_keyword : str, optional
+        Header keyword for exposure time
+        Default = 'EXPTIME'
+    dateobs_start_keyword : str, optional
+        Header keyword for the date obs start
+        Default = 'DATE-OBS'
+    ra_keyword : str, optional
+        Header keyword for the Right Ascension
+        Default = 'RA'
+    dec_keyword : str. optional
+        Header keyword for the Declination
+        Default = 'DEC'
+
+    Returns
+    -------
+    ccd : ccdproc.CCDData array
+        The corrected image
+    time_jd : astropy.Time
+        The JD at mid exposure
+    time_bary : astropy.Time
+        The BJD_TDB at mid exposure
+    time_helio : astropy.Time
+        The HJD at mid exposure
+
+    Raises
+    ------
+    None
+    """
+    print(f'Reducing {filename}...')
+
+    # load the data
+    ccd, header = jhk.load_fits_image(filename)
+    # load few header items
+    data_exp = float(header[exptime_keyword])
+    os_region = header[overscan_keyword]
+    ra = header[ra_keyword]
+    dec = header[dec_keyword]
+    # do some time conversion
+    half_exptime = float(data_exp)/2.
+    time_isot = Time(header[dateobs_start_keyword], format='isot',
+                     scale='utc', location=location)
+    time_jd = Time(time_isot.jd, format='jd', scale='utc', location=location)
+    # correct to mid exposure time
+    time_jd = time_jd + half_exptime*u.second
+    ltt_bary, ltt_helio = jcoords.get_light_travel_times(ra, dec, time_jd)
+    time_bary = time_jd.tdb + ltt_bary
+    time_helio = time_jd.utc + ltt_helio
+    # fetch overscan correction
+    os_corr = extract_overscan_correction(ccd, os_region)
+    # correct the frame for the overscan
+    ccd_corr = ccd - os_corr
+    # correct for dark current if master_dark
+    if master_dark is not None:
+        # scale the dark signal before correcting
+        ccd_corr = ccd_corr - (master_dark * (data_exp/dark_exp))
+    else:
+        print('No master dark, skipping correction...')
+    if master_flat is not None:
+        ccd_corr = ccd_corr / master_flat
+    else:
+        print(f'No master flat for {filt}, skipping correction...')
+    # check the data type is float for sep stage
+    if isinstance(ccd_corr[0][0], np.uint16):
+        ccd_corr = ccd_corr.astype(np.float64)
+    return ccd_corr, time_jd, time_bary, time_helio
+
 def find_max_pixel_value(data, x, y, radius):
     """
     Find the maximum pixel value in the image
