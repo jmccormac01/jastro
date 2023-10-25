@@ -59,7 +59,10 @@ def write_fits_image(filename, data, header, clobber=True):
     ------
     None
     """
-    fitsio.write(filename, data, header=header, clobber=clobber)
+    if header:
+        fitsio.write(filename, data, header=header, clobber=clobber)
+    else:
+        fitsio.write(filename, data, clobber=clobber)
 
 def get_image_list(directory='.', glob_exclude='master*'):
     """

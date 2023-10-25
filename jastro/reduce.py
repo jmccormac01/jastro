@@ -220,7 +220,7 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
             master_dark = np.median(dark_list, axis=0)
             header["N_STACK"] = len(dark_list)
             jhk.write_fits_image(master_dark_filename, master_dark,
-                                 header, clobber=True)
+                                 header=False, clobber=True)
             return master_dark, dark_exp
         else:
             return None, None
