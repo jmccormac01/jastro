@@ -14,6 +14,8 @@ import pyregion
 # pylint: disable = too-many-arguments
 # pylint: disable = too-many-locals
 
+# TODO: DS9 path is hard coded, make it more generic
+
 def is_running(ds9_name):
     """
     Find DS9 window with ds9_name if it exists
@@ -39,13 +41,13 @@ def is_running(ds9_name):
         processes = os.popen(f'ps aux --cols 1024 | grep {ds9_name}').readlines()
     for process in processes:
         if "ds9" in process and f" -title {ds9_name}" in process:
-            print('Hurray! Found DS9 window process')
-            print('Waiting 20s to be sure ds9 is open...')
-            time.sleep(20)
+            print('Found DS9 window process')
+            print('Waiting 5s to be sure ds9 is open...')
+            time.sleep(5)
             ds9 = True
             break
     else:
-        print('Boo! Where the hell is the DS9 window?')
+        print('No DS9 window found')
     return ds9
 
 def start(ds9_name):
@@ -174,6 +176,8 @@ def output_region_file(reference_image_prefix, object_ids, x, y,
     rso : array-like, optional
         Radii of outer edge of sky annuli
         Default = None
+    index_offset : int
+        Indexing offset between ds9 and numpy
 
     Returns
     -------
