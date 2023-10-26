@@ -217,10 +217,12 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
         dark_list = np.array(dark_list)
 
         if len(dark_list) > 0:
+            new_header = {}
             master_dark = np.median(dark_list, axis=0)
-            header["N_STACK"] = len(dark_list)
+            new_header["N_STACK"] = len(dark_list)
+            new_header[exptime_keyword] = dark_exp
             jhk.write_fits_image(master_dark_filename, master_dark,
-                                 header=False, clobber=True)
+                                 header=new_header, clobber=True)
             return master_dark, dark_exp
         else:
             return None, None
