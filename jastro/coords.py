@@ -6,14 +6,76 @@ import math
 from datetime import datetime
 import sep
 import numpy as np
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, EarthLocation
 from astropy.wcs import WCS
 import astropy.units as u
 import jastro.housekeeping as jhk
+import jastro.ds9 as jds9
 
 # pylint: disable=invalid-name
 # pylint: disable=no-member
 # pylint: disable=c-extension-no-member
+
+def get_location(inst_config):
+    """
+    Fetch an EarthLocation object for the
+    observatory
+
+    Parameters
+    ----------
+    inst_config : dict
+        collection of instrument specific config info
+
+    Returns
+    -------
+    location : EarthLocation
+        Observatory location object
+
+    Raises
+    ------
+    None
+    """
+    location = EarthLocation(lat=inst_config['observatory']['olat']*u.deg,
+                             lon=inst_config['observatory']['olon']*u.deg,
+                             height=inst_config['observatory']['elev']*u.m)
+    return location
+
+def load_apertures(night_config, inst_config):
+    """
+    Load up the apertures from config files
+
+    Parameters
+    ----------
+    night_config : dict
+        collection of night specific config info
+    inst_config : dict
+        collection of instrument specific config info
+
+    Returns
+    -------
+    x : array
+        x positions for targets
+    y : array
+        y positions for targets
+    rsi : array
+        inner sky radii for targets
+    rso : array
+        outer sky radii for targets
+
+    Raises
+    ------
+    None
+    """
+    # set up the apertures for photometry
+    x, y, rsi, rso = jds9.read_region_file(night_config['region_file'])
+    # if not defocused, do some recentering
+    # otherwise leave apertures as manually placed
+    if not night_config['defocused']:
+        _, source_x, source_y, *_ = source_extract(night_config['reference_image'],
+                                                   inst_config['sky']['background_sigma'],
+                                                   rad_sky_inner=rsi, rad_sky_outer=rso)
+        x, y = recenter_stars(x, y, source_x, source_y, night_config['max_sep_shift'])
+    return x, y, rsi, rso
 
 def correct_proper_motion(night, pm_ra, pm_dec, coord_to_correct, epoch=2000):
     """
