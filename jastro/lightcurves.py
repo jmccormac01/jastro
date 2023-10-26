@@ -375,4 +375,4 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
     fig.tight_layout()
     fig.savefig(plotname)
     plt.show()
-    return lightcurve_n, lightcurve_err_n
+    return lightcurve_n, lightcurve_err_n, lightcurve_err_nb
