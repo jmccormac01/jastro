@@ -73,8 +73,6 @@ def phot(data, shift, x, y, rsi, rso, aper_radii, filename, jd, bjd, hjd,
     """
     x = np.array(x)-shift.x.value
     y = np.array(y)-shift.y.value
-    # not CCDData object
-    data = data.data
     # loop over each aperture size
     for r, r_aper in enumerate(aper_radii):
         # preamble
