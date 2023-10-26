@@ -10,29 +10,61 @@ import matplotlib.pyplot as plt
 
 # pylint: disable=invalid-name
 
-def lc_mags_to_flux(mags, mags_err):
+def mags_to_flux(mags, mags_err):
     """
-    Take 2 arrays, light curve and errors
-    and convert them from differential magnitudes
-    back to relative fluxes
+    Convert diff mags to relative fluxes
 
     Rolling back these equations:
         mags = - 2.5 * log10(flux)
         mag_err = (2.5/log(10))*(flux_err/flux)
+
+    Parameters
+    ----------
+    mags : array
+        diff mags to convert
+    mags_err : array
+        error on diff mags to convert
+
+    Returns
+    -------
+    flux : array
+        relative fluxes from diff mags
+    flux_err : array
+        errors on relative fluxes from diff mags
+
+    Raises
+    ------
+    None
     """
     flux = 10.**(mags / -2.5)
     flux_err = (mags_err/(2.5/np.log(10))) * flux
     return flux, flux_err
 
-def lc_flux_to_mags(flux, flux_err):
+def flux_to_mags(flux, flux_err):
     """
-    Take 2 arrays, light curve and errors
-    and convert them from differential magnitudes
-    back to relative fluxes
+    Convert relative fluxes to diff mags
 
     Applying these equations:
         mags = - 2.5 * log10(flux)
         mag_err = (2.5/log(10))*(flux_err/flux)
+
+    Parameters
+    ----------
+    flux : array
+        relative fluxes from diff mags
+    flux_err : array
+        errors on relative fluxes from diff mags
+
+    Returns
+    -------
+    mags : array
+        diff mags to convert
+    mags_err : array
+        error on diff mags to convert
+
+    Raises
+    ------
+    None
     """
     mags = -2.5*np.log10(flux)
     mags_err = (2.5/np.log(10))*(flux_err/flux)
@@ -44,14 +76,59 @@ def phase_times(times, epoch, period, phase_offset=0.0):
     convert the times into phase space.
 
     An optional offset can be supplied to shift phase 0
+
+    Parameters
+    ----------
+    times : array
+        Array of times to phase
+    epoch : floar
+        T0 for phasing
+    period : float
+        Period to fold on
+    phase_offset : float
+        Shift phase by fraction of a period
+
+    Returns
+    -------
+    phase : array
+        phased time array
+
+    Raises
+    ------
+    None
     """
     return (((times - epoch)/period)+phase_offset)%1
 
 def bin_time_flux_error(time, flux, error, bin_fact):
     """
     Use reshape to bin light curve data, clip under filled bins
-
     Works with 2D arrays of flux and errors
+
+    Note: under filled bins are clipped off the end of the series
+
+    Parameters
+    ----------
+    times : array
+        Array of times to bin
+    flux : array
+        Array of flux values to bin
+    error : array
+        Array of error values to bin
+    bin_fact : int
+        Number of measurements to combine
+
+    Returns
+    -------
+    times_b : array
+        Binned times
+    flux_b : array
+        Binned fluxes
+    error_b : array
+        Binned errors
+
+    Raises
+    ------
+    None
     """
     n_binned = int(len(time)/bin_fact)
     clip = n_binned*bin_fact
@@ -70,8 +147,34 @@ def bin_time_flux_error(time, flux, error, bin_fact):
 def extract_nights_with_transits(times, flux, err, epoch,
                                  period, t14, transit_type='full'):
     """
-    Take in a time series and ephmeris and
+    Take in a time series and ephemeris and
     return only the nights with transits
+
+    Parameters
+    ----------
+    times : array
+        Array of times
+    flux : array
+        Array of flux values
+    err : array
+        Array of error values
+    epoch : floar
+        T0 for extracting ephem
+    period : float
+        Period for extracting ephem
+    t14 : float
+        Transit duration for extracting ephem
+    transit_type : str
+        Extract 'full' or 'partial' transits?
+
+    Returns
+    -------
+    nights : dict
+        Collection of lcs from nights with transits
+
+    Raises
+    ------
+    None
     """
     # split the data into separate transits
     nights = OrderedDict()
@@ -273,4 +376,3 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
     fig.savefig(plotname)
     plt.show()
     return lightcurve_n, lightcurve_err_n
-

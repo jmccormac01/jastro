@@ -17,8 +17,6 @@ def plot_max_pixel_values(t, comparisons_max_pix, target_max_pix):
     Plot the maximum value in the box around the photometry
     aperture for each comparison and the target.
     This can be used to flag bad comparison stars
-
-    TODO: Finish docstring
     """
     fig, ax = plt.subplots(1, figsize=(10, 10))
     leg = []
@@ -40,10 +38,7 @@ def plot_comparison_stars(t, comparisons):
     to look for variable stars. Fit a 2nd order
     polynomial to them to crudely flatten airmass
     and allow measurement of the RMS
-
-    TODO: Finish docstring
     """
-
     # set up the plotting grid geometry
     NCOLS = 2
     COL_WIDTH = 2

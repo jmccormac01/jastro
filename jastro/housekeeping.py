@@ -5,10 +5,8 @@ from datetime import (
     datetime,
     timedelta
     )
-from astropy.io import fits
 import fitsio
 import ccdproc
-
 
 def load_fits_image(filename, ext=0):
     """
@@ -106,9 +104,8 @@ def get_target_id(filename, object_keyword='OBJECT'):
     ------
     None
     """
-    with fits.open(filename) as fitsfile:
-        target_id = fitsfile[0].header[object_keyword]
-    return target_id
+    _, hdr = load_fits_image(filename)
+    return hdr[object_keyword]
 
 def get_night_id(filename, dateobs_keyword='DATE-OBS'):
     """
@@ -131,8 +128,9 @@ def get_night_id(filename, dateobs_keyword='DATE-OBS'):
     ------
     None
     """
-    with fits.open(filename) as fitsfile:
-        date_obs = datetime.strptime(fitsfile[0].header[dateobs_keyword].split('.')[0], "%Y-%m-%dT%H:%M:%S")
+    _, hdr = load_fits_image(filename)
+    date_obs = datetime.strptime(hdr[dateobs_keyword].split('.')[0],
+                                 "%Y-%m-%dT%H:%M:%S")
     if date_obs.hour < 12:
         date_obs = date_obs - timedelta(days=1)
     return date_obs.strftime('%Y%m%d')

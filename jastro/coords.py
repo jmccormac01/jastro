@@ -6,13 +6,14 @@ import math
 from datetime import datetime
 import sep
 import numpy as np
-from astropy.io import fits
 from astropy.coordinates import SkyCoord
 from astropy.wcs import WCS
 import astropy.units as u
+import jastro.housekeeping as jhk
 
 # pylint: disable=invalid-name
 # pylint: disable=no-member
+# pylint: disable=c-extension-no-member
 
 def correct_proper_motion(night, pm_ra, pm_dec, coord_to_correct, epoch=2000):
     """
@@ -28,6 +29,8 @@ def correct_proper_motion(night, pm_ra, pm_dec, coord_to_correct, epoch=2000):
         mas/yr proper motion in Dec
     coord_to_correct : astropy.coordinates.SkyCoord
         SkyCoord object to correct for proper motion
+    epoch : int
+        Epoch of coordinates
 
     Returns
     -------
@@ -54,7 +57,7 @@ def correct_proper_motion(night, pm_ra, pm_dec, coord_to_correct, epoch=2000):
                                frame='icrs')
     return corrected_coord
 
-def catalogue_to_pixels(astrometry_image, catalogue_coords, object_ids):
+def catalogue_to_pixels(astrometry_image, catalogue_coords, object_ids, border):
     """
     Convert a list of catalogue positions to X and Y image
     coordinates
@@ -68,6 +71,8 @@ def catalogue_to_pixels(astrometry_image, catalogue_coords, object_ids):
         convert to pixels
     object_ids : array-like
         List of target matching IDs
+    border : int
+        Number of pixels around image edge to exclude
 
     Returns
     -------
@@ -83,13 +88,11 @@ def catalogue_to_pixels(astrometry_image, catalogue_coords, object_ids):
     None
     """
     try:
-        with fits.open(astrometry_image) as fitsfile:
-            hdr = fitsfile[0].header
-            width = hdr['NAXIS1']
-            height = hdr['NAXIS2']
-            border = 50
-    except FileNotFoundError:
-        print('CANNOT FIND {}, EXITING...'.format(astrometry_image))
+        _, hdr = jhk.load_fits_image(astrometry_image)
+        width = hdr['NAXIS1']
+        height = hdr['NAXIS2']
+    except OSError:
+        print(f'CANNOT FIND {astrometry_image}, EXITING...')
         sys.exit(1)
 
     # load the WCS
@@ -127,10 +130,9 @@ def pixels_to_catalogue(astrometry_image, pixel_coords):
     None
     """
     try:
-        with fits.open(astrometry_image) as fitsfile:
-            hdr = fitsfile[0].header
-    except FileNotFoundError:
-        print('CANNOT FIND {}, EXITING...'.format(astrometry_image))
+        _, hdr = jhk.load_fits_image(astrometry_image)
+    except OSError:
+        print(f'CANNOT FIND {astrometry_image}, EXITING...')
         sys.exit(1)
 
     # load the WCS
@@ -157,6 +159,8 @@ def check_image_boundaries(x, y, object_ids, width, height, border):
         CCD width in pixels
     height : int
         CCD height in pixels
+    border : int
+        Number of pixels around image edge to exclude
 
     Returns
     -------
@@ -173,8 +177,8 @@ def check_image_boundaries(x, y, object_ids, width, height, border):
     """
     x_checked, y_checked, object_ids_checked = [], [], []
     for i, j, k in zip(x, y, object_ids):
-        if i > border and i < width-border:
-            if j > border and j < height-border:
+        if border < i < width-border:
+            if border < j < height-border:
                 x_checked.append(i)
                 y_checked.append(j)
                 object_ids_checked.append(k)
@@ -209,7 +213,7 @@ def generate_rsi_rso(number, inner, outer):
     return rsi, rso
 
 def source_extract(filename, sigma, rad_sky_inner=None, rad_sky_outer=None,
-                   output=False, seg_map=False, check_image_boundary=False):
+                   output=False, seg_map=False, check_image_boundary=False, border=50):
     """
     Measure the sky background and locate and extract all stars
     in the image supplied
@@ -238,6 +242,9 @@ def source_extract(filename, sigma, rad_sky_inner=None, rad_sky_outer=None,
     check_image_boundary : bool
         Check the extracted positions are not too close to the edge
         Default = False (no boundary check)
+    border : int
+        Number of pixels around image edge to exclude
+        Default = 50
 
     Returns
     -------
@@ -258,11 +265,11 @@ def source_extract(filename, sigma, rad_sky_inner=None, rad_sky_outer=None,
     ------
     None
     """
-    with fits.open(filename) as fitsfile:
-        data = fitsfile[0].data.astype(np.float64)
-        width = fitsfile[0].header['NAXIS1']
-        height = fitsfile[0].header['NAXIS2']
-        border = 50
+    data, hdr = jhk.load_fits_image(filename)
+    data = data.astype(np.float64)
+    width = hdr['NAXIS1']
+    height = hdr['NAXIS2']
+
     bkg = sep.Background(data)
     thresh = sigma * bkg.globalrms
     if not seg_map:
@@ -287,8 +294,7 @@ def source_extract(filename, sigma, rad_sky_inner=None, rad_sky_outer=None,
         rso = rad_sky_outer
 
     if output:
-        np.savetxt('{}.allstars'.format(output),
-                   np.c_[x, y], fmt='%.2f  %.2f', header='x  y')
+        np.savetxt(f'{output}.allstars', np.c_[x, y], fmt='%.2f  %.2f', header='x  y')
     return object_ids, x, y, rsi, rso, segmentation_map
 
 def recenter_stars(xinit, yinit, source_x, source_y, sep_shift=1, seg_map=None):
@@ -344,7 +350,7 @@ def recenter_stars(xinit, yinit, source_x, source_y, sep_shift=1, seg_map=None):
         # if the segmentation map is suppled we are dealing with defocused obs
         # use the seg map to find the centre of the donuts
         if seg_map is not None:
-            print(f"Additional recentering on seg_map...")
+            print("Additional recentering on seg_map...")
             mask = np.where(seg_map == match+1)
             mask_y = round(np.average(mask[0]), 2)
             mask_x = round(np.average(mask[1]), 2)
@@ -353,7 +359,7 @@ def recenter_stars(xinit, yinit, source_x, source_y, sep_shift=1, seg_map=None):
             print(f"Seg_map centroid: {mask_x:.2f} {mask_y:.2f}")
             print(f"{diff_x_seg:.2f} {diff_y_seg:.2f}")
             if diff_x_seg >= sep_shift or diff_y_seg >= sep_shift:
-                print(f"Large shifts in seg_map recentroiding, check! skipping...")
+                print("Large shifts in seg_map recentroiding, check! skipping...")
                 return [], []
             xo.append(mask_x)
             yo.append(mask_y)
