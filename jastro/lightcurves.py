@@ -362,7 +362,7 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
         ax[1].set_ylim(y_llim, y_ulim)
     ax[1].set_xlim(min(t)-0.05, max(t)+0.07)
     # binned data
-    ax[2].errorbar(tb, lightcurve_nb, yerr=lightcurve_err_nb, fmt='.', colour='r', ecolor='lightgrey')
+    ax[2].errorbar(tb, lightcurve_nb, yerr=lightcurve_err_nb, fmt='.', color='r', ecolor='lightgrey')
     ax[2].set_ylabel('Normalised Flux (binned)')
     ax[2].set_xlabel(f'JD - {t0:d}+')
     ax[2].set_title(f'Raw Lightcurve / {fit_type}D Model (binned x {bin_fact:d})')
