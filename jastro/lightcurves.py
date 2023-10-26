@@ -319,7 +319,7 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
         scale = input('Enter scaling factor: ')
         besty = np.full(len(t), float(scale))
     lightcurve_n = lightcurve / besty
-    lightcurve_err_n = lightcurve_err / lightcurve_n
+    lightcurve_err_n = lightcurve_err / besty
     rms = np.std(lightcurve_n[index])
     print(f'RMS-{fit_type}: {rms:.4f}')
 
