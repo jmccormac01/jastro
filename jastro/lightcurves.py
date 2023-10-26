@@ -136,12 +136,12 @@ def bin_time_flux_error(time, flux, error, bin_fact):
     # determine if 1 or 2d flux/err inputs
     if len(flux.shape) == 1:
         flux_b = np.average(flux[:clip].reshape(n_binned, bin_fact), axis=1)
-        error_b = np.average(error[:clip].reshape(n_binned, bin_fact), axis=1)
+        error_b = np.sqrt(np.sum(error[:clip].reshape(n_binned, bin_fact)**2, axis=1))/bin_fact
     else:
         # assumed 2d with 1 row per star
         n_stars = len(flux)
         flux_b = np.average(flux[:clip].reshape((n_stars, n_binned, bin_fact)), axis=2)
-        error_b = np.average(error[:clip].reshape((n_stars, n_binned, bin_fact)), axis=2)
+        error_b = np.sqrt(np.sum(error[:clip].reshape((n_stars, n_binned, bin_fact))**2, axis=2))/bin_fact
     return time_b, flux_b, error_b
 
 def extract_nights_with_transits(times, flux, err, epoch,
