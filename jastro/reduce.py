@@ -388,7 +388,7 @@ def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
     # empty dictionaries for the filtered data
     flat_list = []
     try:
-        master_flat = jhk.load_fits_image(master_flat_filename)
+        master_flat, _ = jhk.load_fits_image(master_flat_filename)
         return master_flat
     except:
         # check for no images
