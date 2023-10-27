@@ -136,12 +136,12 @@ def bin_time_flux_error(time, flux, error, bin_fact):
     # determine if 1 or 2d flux/err inputs
     if len(flux.shape) == 1:
         flux_b = np.average(flux[:clip].reshape(n_binned, bin_fact), axis=1)
-        error_b = np.average(error[:clip].reshape(n_binned, bin_fact), axis=1)
+        error_b = np.sqrt(np.sum(error[:clip].reshape(n_binned, bin_fact)**2, axis=1))/bin_fact
     else:
         # assumed 2d with 1 row per star
         n_stars = len(flux)
         flux_b = np.average(flux[:clip].reshape((n_stars, n_binned, bin_fact)), axis=2)
-        error_b = np.average(error[:clip].reshape((n_stars, n_binned, bin_fact)), axis=2)
+        error_b = np.sqrt(np.sum(error[:clip].reshape((n_stars, n_binned, bin_fact))**2, axis=2))/bin_fact
     return time_b, flux_b, error_b
 
 def extract_nights_with_transits(times, flux, err, epoch,
@@ -264,7 +264,7 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
         Night of observation
     fit_type : int, optional
         Order of the polynomal fit to the out of transit data
-        Default = 1 (Only 1 or 2 supported)
+        Default = 1 (-1, 0, 1 or 2)
     fit_low : float
         Time below which to fit during normalisation
         Time assumed in fractional day
@@ -319,13 +319,13 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
         scale = input('Enter scaling factor: ')
         besty = np.full(len(t), float(scale))
     lightcurve_n = lightcurve / besty
-    lightcurve_err_n = lightcurve_err / lightcurve_n
+    lightcurve_err_n = lightcurve_err / besty
     rms = np.std(lightcurve_n[index])
     print(f'RMS-{fit_type}: {rms:.4f}')
 
     # bin up the data
-    tb, lightcurve_nb, _ = bin_time_flux_error(t, lightcurve_n,
-                                               lightcurve_err_n, bin_fact)
+    tb, lightcurve_nb, lightcurve_err_nb = bin_time_flux_error(t, lightcurve_n,
+         lightcurve_err_n, bin_fact)
     # work out the binned indexes
     if fit_low is not None and fit_high is not None:
         index_b = np.where(((tb < fit_low) | (tb > fit_high)))[0]
@@ -362,7 +362,7 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
         ax[1].set_ylim(y_llim, y_ulim)
     ax[1].set_xlim(min(t)-0.05, max(t)+0.07)
     # binned data
-    ax[2].plot(tb, lightcurve_nb, 'r.')
+    ax[2].errorbar(tb, lightcurve_nb, yerr=lightcurve_err_nb, fmt='.', color='r', ecolor='lightgrey')
     ax[2].set_ylabel('Normalised Flux (binned)')
     ax[2].set_xlabel(f'JD - {t0:d}+')
     ax[2].set_title(f'Raw Lightcurve / {fit_type}D Model (binned x {bin_fact:d})')
@@ -375,4 +375,4 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
     fig.tight_layout()
     fig.savefig(plotname)
     plt.show()
-    return lightcurve_n, lightcurve_err_n
+    return lightcurve_n, lightcurve_err_n, tb, lightcurve_nb, lightcurve_err_nb
