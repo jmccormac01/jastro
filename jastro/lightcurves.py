@@ -264,7 +264,7 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
         Night of observation
     fit_type : int, optional
         Order of the polynomal fit to the out of transit data
-        Default = 1 (Only 1 or 2 supported)
+        Default = 1 (-1, 0, 1 or 2)
     fit_low : float
         Time below which to fit during normalisation
         Time assumed in fractional day
@@ -375,4 +375,4 @@ def normalise(filt, t, t0, lightcurve, lightcurve_err, r_aper, bin_fact,
     fig.tight_layout()
     fig.savefig(plotname)
     plt.show()
-    return lightcurve_n, lightcurve_err_n, lightcurve_err_nb
+    return lightcurve_n, lightcurve_err_n, tb, lightcurve_nb, lightcurve_err_nb
