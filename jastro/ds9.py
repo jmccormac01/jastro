@@ -50,7 +50,7 @@ def is_running(ds9_name):
         print('No DS9 window found')
     return ds9
 
-def start(ds9_name):
+def start(ds9_name, ds9_app_path):
     """
     Start up a DS9 window. Doing it like this is much
     more robust than using pyds9.
@@ -59,6 +59,8 @@ def start(ds9_name):
     ----------
     ds9_name : str
         ID of the DS9 window to open
+    ds9_app_path : str
+        Path to ds9 executable
 
     Returns
     -------
@@ -68,7 +70,7 @@ def start(ds9_name):
     ------
     None
     """
-    os.system(f'/Applications/SAOImageDS9.app/Contents/MacOS/ds9 -title {ds9_name} &')
+    os.system(f'{ds9_app_path} -title {ds9_name} &')
 
 def display(ds9_name, image_id):
     """
@@ -112,7 +114,7 @@ def dset(ds9_name, command):
     """
     os.system(f'xpaset -p {ds9_name} {command}')
 
-def setup(ds9_name, filename=None):
+def setup(ds9_name, ds9_app_path, filename=None):
     """
     Configure the DS9 image viewing window
 
@@ -134,7 +136,7 @@ def setup(ds9_name, filename=None):
     print('Checking for DS9...')
     if not is_running(ds9_name):
         print('No DS9 found, starting DS9...')
-        start(ds9_name)
+        start(ds9_name, ds9_app_path)
         while not is_running(ds9_name):
             print('Checking for DS9...')
             time.sleep(1)
