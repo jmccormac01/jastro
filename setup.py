@@ -25,8 +25,8 @@ LONG_DESCRIPTION = open('README.md').read()
 from jastro_version import VERSION, RELEASE
 
 # add sphinx build_docs integration
-from sphinx.setup_command import BuildDoc
-cmdclass = {'build_sphinx': BuildDoc}
+#from sphinx.setup_command import BuildDoc
+#cmdclass = {'build_sphinx': BuildDoc}
 
 setup(name=PACKAGENAME,
     version=VERSION,
@@ -37,6 +37,7 @@ setup(name=PACKAGENAME,
                       'ccdproc>=2.4.0',
                       'sep>=1.2.1',
                       'donuts>=0.3.5',
+                      'cython>=0.29.35',
                       'fitsio>=1.2.0',
                       'astropy>=5.2.1'],
     setup_requires=['pytest-runner'],
