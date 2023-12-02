@@ -81,7 +81,8 @@ def make_master_bias(images, bias_keyword='BIAS',
         return None
 
 def make_master_dark(images, master_bias=None, dark_keyword='DARK',
-                     exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits"):
+                     exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits",
+                     med_bias=0):
     """
     If no master dark image is found try making a
     master dark from all darks found in the
@@ -108,6 +109,9 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
     master_dark_filename : str
         Name of master dark file to save
         Default = 'master_dark.fits'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -140,7 +144,8 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
             if master_bias is not None:
                 ccd = ccd - master_bias
             else:
-                print('No master bias, skipping correction...')
+                print(f'No master bias, subtracting med_bias {med_bias}...')
+                ccd = ccd - med_bias
             dark_list.append(ccd)
         dark_list = np.array(dark_list)
 
@@ -155,7 +160,8 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
         return None, None
 
 def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
-                         exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits"):
+                         exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits",
+                         med_bias=0):
     """
     If no master dark image is found try making a
     master dark from all darks found in the
@@ -183,6 +189,9 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
     master_dark_filename : str
         Name of master dark file to save
         Default = 'master_dark.fits'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -213,9 +222,12 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
             ccd, header = jhk.load_fits_image(f)
             # load few header items
             dark_exp = round(float(header[exptime_keyword]), 2)
-            os_region = header[overscan_keyword]
             # fetch overscan correction
-            os_corr = extract_overscan_correction(ccd, os_region)
+            try:
+                os_region = header[overscan_keyword]
+                os_corr = extract_overscan_correction(ccd, os_region)
+            except KeyError:
+                os_corr = med_bias
             # correct the frame
             ccd_corr = ccd - os_corr
             # save dark signal for combining
@@ -255,7 +267,7 @@ def estimate_sky_level(data):
 
 def make_master_flat(images, filt, master_bias=None, master_dark=None,
                      dark_exp=30, flat_keyword='FLAT', exptime_keyword='EXPTIME',
-                     master_flat_filename="master_flat.fits"):
+                     master_flat_filename="master_flat.fits", med_bias=0):
     """
     If no master flat is found try making a master flat
     from all the flats in the ImageFileCollection
@@ -292,6 +304,9 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
     master_flat_filename : str
         Name of master flat file to save
         Default = 'master_flat.fits'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -321,7 +336,8 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
             if master_bias is not None:
                 ccd = ccd - master_bias
             else:
-                print('No master bias, skipping correction...')
+                print(f'No master bias, subtracting med_bias {med_bias}...')
+                ccd = ccd - med_bias
             if master_dark is not None:
                 ccd = ccd - (master_dark * (data_exp/dark_exp))
             else:
@@ -341,7 +357,7 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
 
 def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
                          dark_exp=30, flat_keyword='FLAT', exptime_keyword='EXPTIME',
-                         master_flat_filename="master_flat.fits"):
+                         master_flat_filename="master_flat.fits", med_bias=0):
     """
     If no master flat is found try making a master flat
     from all the flats in the ImageFileCollection
@@ -377,6 +393,9 @@ def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
     master_flat_filename : str
         Name of master flat file to save
         Default = 'master_flat.fits'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -405,9 +424,12 @@ def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
             ccd, header = jhk.load_fits_image(f)
             # load few header items
             data_exp = round(float(header[exptime_keyword]), 2)
-            os_region = header[overscan_keyword]
             # fetch overscan correction
-            os_corr = extract_overscan_correction(ccd, os_region)
+            try:
+                os_region = header[overscan_keyword]
+                os_corr = extract_overscan_correction(ccd, os_region)
+            except KeyError:
+                os_corr = med_bias
             # correct the frame for the overscan
             ccd_corr = ccd - os_corr
             # correct for dark current if master_dark
@@ -434,7 +456,8 @@ def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
 
 def correct_data(filename, filt, location, master_bias=None, master_dark=None,
                  master_flat=None, dark_exp=30, exptime_keyword='EXPTIME',
-                 dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC'):
+                 dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC',
+                 med_bias=0):
     """
     Correct a science image using the available
     master calibrations. Skip a calibration step if the
@@ -480,6 +503,9 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
     dec_keyword : str. optional
         Header keyword for the Declination
         Default = 'DEC'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -515,7 +541,8 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
     if master_bias is not None:
         ccd = ccd - master_bias
     else:
-        print('No master bias, skipping correction...')
+        print(f'No master bias, subtracting med_bias {med_bias}...')
+        ccd = ccd - med_bias
     if master_dark is not None:
         ccd = ccd - (master_dark * (data_exp/dark_exp))
     else:
@@ -534,7 +561,8 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
 
 def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=None,
                      master_flat=None, dark_exp=30, exptime_keyword='EXPTIME',
-                     dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC'):
+                     dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC',
+                     med_bias=0):
     """
     Correct a science image using the available
     master calibrations. Skip a calibration step if the
@@ -579,6 +607,9 @@ def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=Non
     dec_keyword : str. optional
         Header keyword for the Declination
         Default = 'DEC'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -621,7 +652,7 @@ def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=Non
     except KeyError:
         print(f"{overscan_keyword} missing, skipping OSC...")
         # make a dummy block of zeros for OSC
-        os_corr = np.zeros_like(ccd)
+        os_corr = med_bias
 
     # correct the frame for the overscan
     ccd_corr = ccd - os_corr
