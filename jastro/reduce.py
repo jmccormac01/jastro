@@ -227,6 +227,7 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
                 os_region = header[overscan_keyword]
                 os_corr = extract_overscan_correction(ccd, os_region)
             except KeyError:
+                print(f'No overscan, subtracting med_bias {med_bias}...')
                 os_corr = med_bias
             # correct the frame
             ccd_corr = ccd - os_corr
@@ -429,6 +430,7 @@ def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
                 os_region = header[overscan_keyword]
                 os_corr = extract_overscan_correction(ccd, os_region)
             except KeyError:
+                print(f'No master bias, subtracting med_bias {med_bias}...')
                 os_corr = med_bias
             # correct the frame for the overscan
             ccd_corr = ccd - os_corr
@@ -650,7 +652,7 @@ def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=Non
         os_region = header[overscan_keyword]
         os_corr = extract_overscan_correction(ccd, os_region)
     except KeyError:
-        print(f"{overscan_keyword} missing, skipping OSC...")
+        print(f'No master bias, subtracting med_bias {med_bias}...')
         # make a dummy block of zeros for OSC
         os_corr = med_bias
 
