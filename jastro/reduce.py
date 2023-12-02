@@ -601,7 +601,6 @@ def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=Non
     ccd, header = jhk.load_fits_image(filename)
     # load few header items
     data_exp = round(float(header[exptime_keyword]), 2)
-    os_region = header[overscan_keyword]
     ra = header[ra_keyword]
     dec = header[dec_keyword]
     # do some time conversion
@@ -614,8 +613,16 @@ def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=Non
     ltt_bary, ltt_helio = jcoords.get_light_travel_times(ra, dec, time_jd)
     time_bary = time_jd.tdb + ltt_bary
     time_helio = time_jd.utc + ltt_helio
+
     # fetch overscan correction
-    os_corr = extract_overscan_correction(ccd, os_region)
+    try:
+        os_region = header[overscan_keyword]
+        os_corr = extract_overscan_correction(ccd, os_region)
+    except KeyError:
+        print(f"{overscan_keyword} missing, skipping OSC...")
+        # make a dummy block of zeros for OSC
+        os_corr = np.zeros_like(ccd)
+
     # correct the frame for the overscan
     ccd_corr = ccd - os_corr
     # correct for dark current if master_dark
