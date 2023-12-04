@@ -8,7 +8,7 @@ from datetime import (
 import fitsio
 import ccdproc
 
-def load_fits_image(filename, ext=0):
+def load_fits_image(filename, ext=0, force_float=True):
     """
     Read a fits image and header with fitsio
 
@@ -31,6 +31,7 @@ def load_fits_image(filename, ext=0):
     None
     """
     data, header = fitsio.read(filename, header=True, ext=ext)
+    data = data.astype(float)
     return data, header
 
 def write_fits_image(filename, data, header, clobber=True):
