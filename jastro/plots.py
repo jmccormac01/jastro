@@ -12,7 +12,8 @@ import numpy as np
 # pylint: disable = unused-variable
 # pylint: disable = line-too-long
 
-def plot_max_pixel_values(t, comparisons_max_pix, target_max_pix):
+def plot_max_pixel_values(t, comparisons_max_pix, target_max_pix,
+                          target_id, filt, aperture_radius):
     """
     Plot the maximum value in the box around the photometry
     aperture for each comparison and the target.
@@ -29,10 +30,10 @@ def plot_max_pixel_values(t, comparisons_max_pix, target_max_pix):
     ax.set_ylabel('Reduced Flux')
     ax.set_title('Maximum Pixel Values')
     ax.legend((leg), loc=1)
-    fig.savefig('MaxPixelValues.png')
+    fig.savefig(f'{target_id.replace(" ", "-")}_{filt}_A{aperture_radius}_max_pixel_values.png')
     plt.show()
 
-def plot_comparison_stars(t, comparisons):
+def plot_comparison_stars(t, comparisons, target_id, filt, aperture_radius):
     """
     Compare the comparison stars to each other
     to look for variable stars. Fit a 2nd order
@@ -79,10 +80,10 @@ def plot_comparison_stars(t, comparisons):
             if c > NCOLS - 1:
                 c = 0
                 r += SUB_ROWS
-        fig.savefig(f'Comparisons_wrt_{i+1}.png')
+        fig.savefig(f'{target_id.replace(" ", "-")}_{filt}_A{aperture_radius}_comparisons_wrt_{i+1}.png')
     plt.show()
 
-def plot_star_fluxes(t, comparisons, target, aperture_radius):
+def plot_star_fluxes(t, comparisons, target, target_id, filt, aperture_radius):
     """
     Plot the raw fluxes for each object
     """
@@ -97,5 +98,5 @@ def plot_star_fluxes(t, comparisons, target, aperture_radius):
     ax.set_ylabel('Flux')
     ax.set_title('Raw Fluxes')
     ax.legend((leg), loc=1)
-    fig.savefig(f'RawFluxes_A{aperture_radius}.png')
+    fig.savefig(f'{target_id.replace(" ", "-")}_{filt}_A{aperture_radius}_raw_fluxes.png')
     plt.show()
