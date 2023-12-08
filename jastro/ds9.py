@@ -249,7 +249,7 @@ def read_region_file(region_filename, index_offset=1):
 
     comparisons = defaultdict(list)
     x, y, rsi, rso = [], [], [], []
-    region_regex = r'text={(?P<label>\w+)}'
+    region_regex = r'text={(?P<label>.*?)}'
     r = re.compile(region_regex)
     for i in f:
         match = r.match(i.comment)
