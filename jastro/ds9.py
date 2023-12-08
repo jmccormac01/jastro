@@ -14,8 +14,6 @@ import pyregion
 # pylint: disable = too-many-arguments
 # pylint: disable = too-many-locals
 
-# TODO: DS9 path is hard coded, make it more generic
-
 def is_running(ds9_name):
     """
     Find DS9 window with ds9_name if it exists
