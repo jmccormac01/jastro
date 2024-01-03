@@ -95,17 +95,17 @@ def get_image_file_collection(instrument_config, directory, glob_exclude):
     # storage for info
     biases = []
     darks = []
-    flats = defaultdict(lambda: defaultdict(list))
-    science = defaultdict(lambda: defaultdict(list))
+    flats = defaultdict(list)
+    science = defaultdict(dict)
 
     # fetch all the header keyword info
-    image_type_keyword = instrument_config['image_type_keyword']
-    filter_keyword = instrument_config['filter_keyword']
-    bias_keyword = instrument_config['bias_keyword']
-    dark_keyword = instrument_config['dark_keyword']
-    flat_keyword = instrument_config['flat_keyword']
-    image_keyword = instrument_config['image_keyword']
-    object_keyword = instrument_config['object_keyword']
+    image_type_keyword = instrument_config['imager']['image_type_keyword']
+    filter_keyword = instrument_config['imager']['filter_keyword']
+    bias_keyword = instrument_config['imager']['bias_keyword']
+    dark_keyword = instrument_config['imager']['dark_keyword']
+    flat_keyword = instrument_config['imager']['flat_keyword']
+    image_keyword = instrument_config['imager']['image_keyword']
+    object_keyword = instrument_config['imager']['object_keyword']
 
     # loop over all images
     for image in filtered_templist:
@@ -125,6 +125,9 @@ def get_image_file_collection(instrument_config, directory, glob_exclude):
         # keep a nested list of science/filter objects
         elif image_type == image_keyword:
             obj = header[object_keyword]
+            if obj not in science:
+                science[obj] = defaultdict(list)
+            filt = header[filter_keyword]
             science[obj][filt].append(image)
 
     # build the final image file collection dict
