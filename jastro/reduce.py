@@ -10,6 +10,9 @@ import jastro.housekeeping as jhk
 # pylint: disable=invalid-name
 # pylint: disable=no-member
 # pylint: disable=bare-except
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-locals
+
 
 def extract_overscan_correction(data, os_region):
     """
@@ -28,8 +31,7 @@ def extract_overscan_correction(data, os_region):
         os_correction = np.median(os_data, axis=1)
     return os_correction
 
-def make_master_bias(images, bias_keyword='BIAS',
-                     master_bias_filename="master_bias.fits"):
+def make_master_bias(images, master_bias_filename="master_bias.fits"):
     """
     If no master bias image is found try making a
     master bias using all biases found in the
@@ -37,12 +39,9 @@ def make_master_bias(images, bias_keyword='BIAS',
 
     Parameters
     ----------
-    images : object ccdproc.ImageFileCollection
-        Object containing a list of images in the
+    images : dict
+        Dict containing lists of images in the
         working directory
-    bias_keyword : str
-        Header keyword for bias images
-        Default = 'BIAS'
     master_bias_filename : str
         Name of master bias file to save
         Default = 'master_bias.fits'
@@ -63,25 +62,25 @@ def make_master_bias(images, bias_keyword='BIAS',
         return master_bias
     except:
         # check for no images
-        if not images.files:
+        if not images['biases']:
             return None
-        for f in images.files_filtered(imagetyp=bias_keyword):
+        # loop over any biaes and load each image
+        for f in images['biases']:
             print(f)
             ccd, _ = jhk.load_fits_image(f)
             bias_list.append(ccd)
         bias_list = np.array(bias_list)
-
-        if len(bias_list) > 0:
-            new_header = {}
-            new_header["N_STACK"] = len(bias_list)
-            master_bias = np.median(bias_list, axis=0)
-            jhk.write_fits_image(master_bias_filename, master_bias,
-                                 header=new_header, clobber=True)
-            return master_bias
-        return None
+        # build the master frame
+        new_header = {}
+        new_header["N_STACK"] = len(bias_list)
+        master_bias = np.median(bias_list, axis=0)
+        jhk.write_fits_image(master_bias_filename, master_bias,
+                             header=new_header, clobber=True)
+        return master_bias
 
 def make_master_dark(images, master_bias=None, dark_keyword='DARK',
-                     exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits"):
+                     exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits",
+                     med_bias=0):
     """
     If no master dark image is found try making a
     master dark from all darks found in the
@@ -93,21 +92,21 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
 
     Parameters
     ----------
-    images : object ccdproc.ImageFileCollection
-        Object containing a list of images in the
+    images : dict
+        Dict containing lists of images in the
         working directory
     master_bias : array-like, optional
         Array containing the master bias image
         Default = None
-    dark_keyword : str
-        Header keyword for dark images
-        Default = 'DARK'
     exptime_keyword : str
         Header keyword for exposure time
         Default = 'EXPTIME'
     master_dark_filename : str
         Name of master dark file to save
         Default = 'master_dark.fits'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -130,9 +129,10 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
         return master_dark, dark_exp
     except:
         # check for no images
-        if not images.files:
+        if not images['darks']:
             return None, None
-        for f in images.files_filtered(imagetyp=dark_keyword):
+        # load each dark and apply a bias correction if possible
+        for f in images['darks']:
             print(f)
             ccd, hdr = jhk.load_fits_image(f)
             if not dark_exp:
@@ -140,22 +140,22 @@ def make_master_dark(images, master_bias=None, dark_keyword='DARK',
             if master_bias is not None:
                 ccd = ccd - master_bias
             else:
-                print('No master bias, skipping correction...')
+                print(f'No master bias, subtracting med_bias {med_bias}...')
+                ccd = ccd - med_bias
             dark_list.append(ccd)
         dark_list = np.array(dark_list)
-
-        if len(dark_list) > 0:
-            new_header = {}
-            master_dark = np.median(dark_list, axis=0)
-            new_header["N_STACK"] = len(dark_list)
-            new_header[exptime_keyword] = dark_exp
-            jhk.write_fits_image(master_dark_filename, master_dark,
-                                 header=new_header, clobber=True)
-            return master_dark, dark_exp
-        return None, None
+        # build the the master dark
+        new_header = {}
+        master_dark = np.median(dark_list, axis=0)
+        new_header["N_STACK"] = len(dark_list)
+        new_header[exptime_keyword] = dark_exp
+        jhk.write_fits_image(master_dark_filename, master_dark,
+                             header=new_header, clobber=True)
+        return master_dark, dark_exp
 
 def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
-                         exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits"):
+                         exptime_keyword='EXPTIME', master_dark_filename="master_dark.fits",
+                         med_bias=0):
     """
     If no master dark image is found try making a
     master dark from all darks found in the
@@ -169,20 +169,20 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
 
     Parameters
     ----------
-    images : object ccdproc.ImageFileCollection
-        Object containing a list of images in the
+    images : dict
+        Dict containing lists of images in the
         working directory
     overscan_keyword : str
         Overscan region defined as '[x1:x2,y1:y2]'
-    dark_keyword : str
-        Header keyword for dark images
-        Default = 'DARK'
     exptime_keyword : str
         Header keyword for exposure time
         Default = 'EXPTIME'
     master_dark_filename : str
         Name of master dark file to save
         Default = 'master_dark.fits'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -205,32 +205,35 @@ def make_master_dark_osc(images, overscan_keyword, dark_keyword='DARK',
         return master_dark, dark_exp
     except:
         # check for no images
-        if not images.files:
+        if not images['darks']:
             return None, None
-        for f in images.files_filtered(imagetyp=dark_keyword):
+        # load each dark and apply a bias correction if possible
+        for f in images['darks']:
             print(f)
             # load the data
             ccd, header = jhk.load_fits_image(f)
             # load few header items
             dark_exp = round(float(header[exptime_keyword]), 2)
-            os_region = header[overscan_keyword]
             # fetch overscan correction
-            os_corr = extract_overscan_correction(ccd, os_region)
+            try:
+                os_region = header[overscan_keyword]
+                os_corr = extract_overscan_correction(ccd, os_region)
+            except KeyError:
+                print(f'No overscan, subtracting med_bias {med_bias}...')
+                os_corr = med_bias
             # correct the frame
             ccd_corr = ccd - os_corr
             # save dark signal for combining
             dark_list.append(ccd_corr)
         dark_list = np.array(dark_list)
-
-        if len(dark_list) > 0:
-            new_header = {}
-            master_dark = np.median(dark_list, axis=0)
-            new_header["N_STACK"] = len(dark_list)
-            new_header[exptime_keyword] = dark_exp
-            jhk.write_fits_image(master_dark_filename, master_dark,
-                                 header=new_header, clobber=True)
-            return master_dark, dark_exp
-        return None, None
+        # build the master dark
+        new_header = {}
+        master_dark = np.median(dark_list, axis=0)
+        new_header["N_STACK"] = len(dark_list)
+        new_header[exptime_keyword] = dark_exp
+        jhk.write_fits_image(master_dark_filename, master_dark,
+                             header=new_header, clobber=True)
+        return master_dark, dark_exp
 
 def estimate_sky_level(data):
     """
@@ -255,7 +258,7 @@ def estimate_sky_level(data):
 
 def make_master_flat(images, filt, master_bias=None, master_dark=None,
                      dark_exp=30, flat_keyword='FLAT', exptime_keyword='EXPTIME',
-                     master_flat_filename="master_flat.fits"):
+                     master_flat_filename="master_flat.fits", med_bias=0):
     """
     If no master flat is found try making a master flat
     from all the flats in the ImageFileCollection
@@ -269,8 +272,8 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
 
     Parameters
     ----------
-    images : object ccdproc.ImageFileCollection
-        Object containing a list of images in the
+    images : dict
+        Dict containing lists of images in the
         working directory
     filt : str
         The name of the filter used for this data
@@ -283,15 +286,15 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
     dark_exp : int, optional
         Exposure time for master dark
         Default = 30
-    flat_keyword : str, optional
-        Header keyword for the flat fields
-        Default = 'Flat Field'
     exptime_keyword : str, optional
         Header keyword for exposure time
         Default = 'EXPTIME'
     master_flat_filename : str
         Name of master flat file to save
         Default = 'master_flat.fits'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -310,18 +313,20 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
         return master_flat
     except:
         # check for no images
-        if not images.files:
+        if not images['flats'][filt]:
+            print(f'There are no flats for {filt}, skipping...')
             return None
-        # create the master flat field for each filter
+        # loop over each flat and apply bias/dark correction if possible
         print(f'Reducing flats from filter {filt}')
-        for f in images.files_filtered(imagetyp=flat_keyword, filter=filt):
+        for f in images['flats'][filt]:
             print(f)
             ccd, hdr = jhk.load_fits_image(f)
             data_exp = round(float(hdr[exptime_keyword]), 2)
             if master_bias is not None:
                 ccd = ccd - master_bias
             else:
-                print('No master bias, skipping correction...')
+                print(f'No master bias, subtracting med_bias {med_bias}...')
+                ccd = ccd - med_bias
             if master_dark is not None:
                 ccd = ccd - (master_dark * (data_exp/dark_exp))
             else:
@@ -330,18 +335,15 @@ def make_master_flat(images, filt, master_bias=None, master_dark=None,
             ccd = ccd / sky_level
             flat_list.append(ccd)
         flat_list = np.array(flat_list)
-
-        if len(flat_list) > 0:
-            master_flat = np.median(flat_list, axis=0)
-            jhk.write_fits_image(master_flat_filename, master_flat,
-                                 header=False, clobber=True)
-            return master_flat
-        print(f'There are no flats for {filt}, skipping...')
-        return None
+        # build the master flat
+        master_flat = np.median(flat_list, axis=0)
+        jhk.write_fits_image(master_flat_filename, master_flat,
+                             header=False, clobber=True)
+        return master_flat
 
 def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
                          dark_exp=30, flat_keyword='FLAT', exptime_keyword='EXPTIME',
-                         master_flat_filename="master_flat.fits"):
+                         master_flat_filename="master_flat.fits", med_bias=0):
     """
     If no master flat is found try making a master flat
     from all the flats in the ImageFileCollection
@@ -355,8 +357,8 @@ def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
 
     Parameters
     ----------
-    images : object ccdproc.ImageFileCollection
-        Object containing a list of images in the
+    images : dict
+        Dict containing lists of images in the
         working directory
     filt : str
         The name of the filter used for this data
@@ -368,15 +370,15 @@ def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
     dark_exp : int, optional
         Exposure time for master dark
         Default = 30
-    flat_keyword : str, optional
-        Header keyword for the flat fields
-        Default = 'Flat Field'
     exptime_keyword : str, optional
         Header keyword for exposure time
         Default = 'EXPTIME'
     master_flat_filename : str
         Name of master flat file to save
         Default = 'master_flat.fits'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -395,19 +397,24 @@ def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
         return master_flat
     except:
         # check for no images
-        if not images.files:
+        if not images['flats'][filt]:
+            print(f'There are no flats for {filt}, skipping...')
             return None
-        # create the master flat field for each filter
+        # loop over each flat and apply bias/dark correction if possible
         print(f'Reducing flats from filter {filt}')
-        for f in images.files_filtered(imagetyp=flat_keyword, filter=filt):
+        for f in images['flats'][filt]:
             print(f)
             # load the data
             ccd, header = jhk.load_fits_image(f)
             # load few header items
             data_exp = round(float(header[exptime_keyword]), 2)
-            os_region = header[overscan_keyword]
             # fetch overscan correction
-            os_corr = extract_overscan_correction(ccd, os_region)
+            try:
+                os_region = header[overscan_keyword]
+                os_corr = extract_overscan_correction(ccd, os_region)
+            except KeyError:
+                print(f'No master bias, subtracting med_bias {med_bias}...')
+                os_corr = med_bias
             # correct the frame for the overscan
             ccd_corr = ccd - os_corr
             # correct for dark current if master_dark
@@ -423,18 +430,16 @@ def make_master_flat_osc(images, filt, overscan_keyword, master_dark=None,
             # save dark signal for combining
             flat_list.append(ccd_corr_norm)
         flat_list = np.array(flat_list)
-
-        if len(flat_list) > 0:
-            master_flat = np.median(flat_list, axis=0)
-            jhk.write_fits_image(master_flat_filename, master_flat,
-                                 header=False, clobber=True)
-            return master_flat
-        print(f'There are no flats for {filt}, skipping...')
-        return None
+        # build the master flat
+        master_flat = np.median(flat_list, axis=0)
+        jhk.write_fits_image(master_flat_filename, master_flat,
+                             header=False, clobber=True)
+        return master_flat
 
 def correct_data(filename, filt, location, master_bias=None, master_dark=None,
                  master_flat=None, dark_exp=30, exptime_keyword='EXPTIME',
-                 dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC'):
+                 dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC',
+                 med_bias=0):
     """
     Correct a science image using the available
     master calibrations. Skip a calibration step if the
@@ -480,6 +485,9 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
     dec_keyword : str. optional
         Header keyword for the Declination
         Default = 'DEC'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -515,7 +523,8 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
     if master_bias is not None:
         ccd = ccd - master_bias
     else:
-        print('No master bias, skipping correction...')
+        print(f'No master bias, subtracting med_bias {med_bias}...')
+        ccd = ccd - med_bias
     if master_dark is not None:
         ccd = ccd - (master_dark * (data_exp/dark_exp))
     else:
@@ -534,7 +543,8 @@ def correct_data(filename, filt, location, master_bias=None, master_dark=None,
 
 def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=None,
                      master_flat=None, dark_exp=30, exptime_keyword='EXPTIME',
-                     dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC'):
+                     dateobs_start_keyword='DATE-OBS', ra_keyword='RA', dec_keyword='DEC',
+                     med_bias=0):
     """
     Correct a science image using the available
     master calibrations. Skip a calibration step if the
@@ -579,6 +589,9 @@ def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=Non
     dec_keyword : str. optional
         Header keyword for the Declination
         Default = 'DEC'
+    med_bias : int
+        Fallback value if overscan is unavailable
+        Default = 0
 
     Returns
     -------
@@ -601,7 +614,6 @@ def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=Non
     ccd, header = jhk.load_fits_image(filename)
     # load few header items
     data_exp = round(float(header[exptime_keyword]), 2)
-    os_region = header[overscan_keyword]
     ra = header[ra_keyword]
     dec = header[dec_keyword]
     # do some time conversion
@@ -614,8 +626,16 @@ def correct_data_osc(filename, filt, location, overscan_keyword, master_dark=Non
     ltt_bary, ltt_helio = jcoords.get_light_travel_times(ra, dec, time_jd)
     time_bary = time_jd.tdb + ltt_bary
     time_helio = time_jd.utc + ltt_helio
+
     # fetch overscan correction
-    os_corr = extract_overscan_correction(ccd, os_region)
+    try:
+        os_region = header[overscan_keyword]
+        os_corr = extract_overscan_correction(ccd, os_region)
+    except KeyError:
+        print(f'No master bias, subtracting med_bias {med_bias}...')
+        # make a dummy block of zeros for OSC
+        os_corr = med_bias
+
     # correct the frame for the overscan
     ccd_corr = ccd - os_corr
     # correct for dark current if master_dark
