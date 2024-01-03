@@ -24,7 +24,7 @@ def phot(data, shift, x, y, rsi, rso, aper_radii, filename, jd, bjd, hjd,
 
     Parameters
     ----------
-    data : ccdproc.CCDData
+    data : numpy array
         Image array
     shift : donuts.image.Image
         The shift between the reference and this image is found
