@@ -9,7 +9,36 @@ from datetime import (
 from collections import defaultdict
 import fitsio
 
-def load_fits_image(filename, ext=0, force_float=True):
+def load_fits_image(filename, ext=0, force_float=False):
+    """
+    Read a fits image and header with fitsio
+
+    Parameters
+    ----------
+    filename : str
+        filename to load
+    ext : int
+        extension to load
+    force_float : bool
+        force image data to be float on load
+
+    Returns
+    -------
+    data : array
+        data from the corresponding extension
+    header : fitsio.header.FITSHDR
+        list from file header
+
+    Raises
+    ------
+    None
+    """
+    data, header = fitsio.read(filename, header=True, ext=ext)
+    if force_float:
+        data = data.astype(float)
+    return data, header
+
+def load_fits_table(filename, ext=0):
     """
     Read a fits image and header with fitsio
 
@@ -32,7 +61,6 @@ def load_fits_image(filename, ext=0, force_float=True):
     None
     """
     data, header = fitsio.read(filename, header=True, ext=ext)
-    data = data.astype(float)
     return data, header
 
 def write_fits_image(filename, data, header, clobber=True):
