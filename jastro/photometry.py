@@ -42,7 +42,7 @@ def wcs_phot(data, frame_id, gaia_ids, x, y, rsi, rso, aperture_radii, gain=1.00
                   names=tuple([f"{c}_{r}" for c in col_labels]))
 
         # stack the new columns onto the RHS of the table
-        Tout = hstack(Tout, T)
+        Tout = hstack([Tout, T])
     return Tout
 
 
