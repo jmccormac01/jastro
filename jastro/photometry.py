@@ -15,18 +15,14 @@ from jastro.reduce import find_max_pixel_value
 
 # TODO: redo the output format later
 
-def wcs_phot(data, frame_id, gaia_ids, x, y, rsi, rso, aperture_radii, gain=1.00):
+def wcs_phot(data, x, y, rsi, rso, aperture_radii, gain=1.00):
     """
     Take a corrected image array and extract photometry for a set of WCS driven
     X and Y pixel positons. Do this for a series of aperture radii and apply
     a gain correction to the photometry
     """
-    # do preamble for this this image
-    frame_ids = [frame_id for i in range(len(gaia_ids))]
-    Tout = Table([frame_ids, gaia_ids, x, y],
-                 names=("frame_id", "gaia_id", "x", "y"))
-
     col_labels = ["flux", "fluxerr", "flux_w_sky", "fluxerr_w_sky", "max_pixel_value"]
+    Tout = None
     for r in aperture_radii:
         flux, fluxerr, _ = sep.sum_circle(data, x, y, r,
                                           subpix=0,
@@ -38,11 +34,14 @@ def wcs_phot(data, frame_id, gaia_ids, x, y, rsi, rso, aperture_radii, gain=1.00
         # calculate the max pixel value in each aperture
         max_pixel_value = np.array([find_max_pixel_value(data, int(i), int(j), int(r+1)) for i, j in zip(x, y)])
         # build this photometry into a table
-        T = Table([flux, fluxerr, flux_w_sky, fluxerr_w_sky, max_pixel_value],
-                  names=tuple([f"{c}_{r}" for c in col_labels]))
-
-        # stack the new columns onto the RHS of the table
-        Tout = hstack([Tout, T])
+        if Tout is None:
+            Tout = Table([flux, fluxerr, flux_w_sky, fluxerr_w_sky, max_pixel_value],
+                          names=tuple([f"{c}_{r}" for c in col_labels]))
+        else:
+            T = Table([flux, fluxerr, flux_w_sky, fluxerr_w_sky, max_pixel_value],
+                       names=tuple([f"{c}_{r}" for c in col_labels]))
+            # stack the new columns onto the RHS of the table
+            Tout = hstack([Tout, T])
     return Tout
 
 
