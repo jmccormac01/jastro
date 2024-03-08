@@ -44,7 +44,6 @@ def wcs_phot(data, x, y, rsi, rso, aperture_radii, gain=1.00):
             Tout = hstack([Tout, T])
     return Tout
 
-
 def phot(data, shift, x, y, rsi, rso, aper_radii, filename, jd, bjd, hjd,
          phot_filename_prefix="rtp", ds9_name=None, draw_regions=False,
          gain=1.00, index_offset=1):
