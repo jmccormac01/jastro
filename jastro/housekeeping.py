@@ -7,7 +7,7 @@ from datetime import (
     timedelta
     )
 from collections import defaultdict
-import fitsio
+from astropy.io import fits
 
 def load_fits_image(filename, ext=0, force_float=False):
     """
@@ -26,14 +26,14 @@ def load_fits_image(filename, ext=0, force_float=False):
     -------
     data : array
         data from the corresponding extension
-    header : fitsio.header.FITSHDR
+    header : astropy.io.fits.header.Header
         list from file header
 
     Raises
     ------
     None
     """
-    data, header = fitsio.read(filename, header=True, ext=ext)
+    data, header = fits.getdata(filename, header=True, ext=ext)
     if force_float:
         data = data.astype(float)
     return data, header
@@ -60,7 +60,7 @@ def load_fits_table(filename, ext=0):
     ------
     None
     """
-    data, header = fitsio.read(filename, header=True, ext=ext)
+    data, header = fits.getdata(filename, header=True, ext=ext)
     return data, header
 
 def write_fits_image(filename, data, header, clobber=True):
@@ -88,9 +88,9 @@ def write_fits_image(filename, data, header, clobber=True):
     None
     """
     if header:
-        fitsio.write(filename, data, header=header, clobber=clobber)
+        fits.writeto(filename, data, header=header, overwrite=clobber)
     else:
-        fitsio.write(filename, data, clobber=clobber)
+        fits.writeto(filename, data, overwrite=clobber)
 
 def get_image_file_collection(instrument_config, directory, glob_exclude):
     """
